@@ -42,30 +42,35 @@ export interface CompanyStep3 {
   redes?: { instagram?: string; facebook?: string; twitter?: string; youtube?: string; tiktok?: string };
 }
 export interface CompanyRecord {
-  id: string; ownerId?: string; status: "draft"|"active";
+  uid: string; ownerId?: string; status?: string; activa?: boolean; plan?: string;
+  nombre?: string; nit?: string; descripcion?: string;
+  ciudad?: string; telefono?: string; sitioWeb?: string;
+  categorias?: string[]; logoUrl?: string;
   createdAt?: unknown; updatedAt?: unknown;
+  // legacy step-based fields
   step1?: CompanyStep1; step2?: CompanyStep2; step3?: CompanyStep3;
 }
 export async function getCompany(uid: string): Promise<CompanyRecord|null> {
   const s = await getDoc(doc(db,'companies',uid));
-  return s.exists() ? { id: s.id, ...s.data() } as CompanyRecord : null;
+  return s.exists() ? { uid: s.id, ...s.data() } as CompanyRecord : null;
 }
 export async function saveCompanyStep(uid: string, step: 'step1'|'step2'|'step3', data: CompanyStep1|CompanyStep2|CompanyStep3) {
   await setDoc(doc(db,'companies',uid), { [step]: data, ownerId: uid, updatedAt: serverTimestamp() }, { merge: true });
 }
-export async function activateCompany(uid: string) {
-  await setDoc(doc(db,'companies',uid), { status:'active', updatedAt: serverTimestamp() }, { merge: true });
+export async function activateCompany(uid: string, activa = true) {
+  await setDoc(doc(db,'companies',uid), { activa, status: activa ? 'active' : 'draft', updatedAt: serverTimestamp() }, { merge: true });
 }
 export async function updateCompanyStatus(uid: string, status: 'draft'|'active') {
   await updateDoc(doc(db,'companies',uid), { status, updatedAt: serverTimestamp() });
 }
 export async function getAllCompanies(): Promise<CompanyRecord[]> {
   const s = await getDocs(collection(db,'companies'));
-  return s.docs.map(d => ({ id: d.id, ...d.data() }) as CompanyRecord);
+  return s.docs.map(d => ({ uid: d.id, ...d.data() }) as CompanyRecord);
 }
 export async function getActiveCompanies(): Promise<CompanyRecord[]> {
-  const s = await getDocs(query(collection(db,'companies'), where('status','==','active')));
-  return s.docs.map(d => ({ id: d.id, ...d.data() }) as CompanyRecord);
+  const s = await getDocs(collection(db,'companies'));
+  return s.docs.map(d => ({ uid: d.id, ...d.data() }) as CompanyRecord)
+    .filter(c => c.activa === true || c.status === 'active');
 }
 
 /* ── Pagos ───────────────────────────────────────────────────────────────── */

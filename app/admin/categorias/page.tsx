@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  getCategories, saveCategoria, updateCategoria, deleteCategoria,
+  getCategorias as getCategories, saveCategoria, updateCategoria, deleteCategoria,
   type CategoriaRecord,
 } from "@/lib/firebase/firestore";
 

@@ -4,12 +4,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
-  saveCompanyStep,
   markOnboardingComplete,
-  getActiveCategories,
+  getCategoriasActivas,
   type CategoriaRecord,
 } from "@/lib/firebase/firestore";
-import { storage } from "@/lib/firebase/client";
+import { db, storage } from "@/lib/firebase/client";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const STEPS = ["Empresa", "Contacto", "Categorías", "Logo"];
@@ -44,7 +44,7 @@ export default function OnboardingPage() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    getActiveCategories().then(setCategorias);
+    getCategoriasActivas().then(setCategorias);
   }, []);
 
   function toggleCat(id: string) {
@@ -61,18 +61,25 @@ export default function OnboardingPage() {
   async function handleNext() {
     if (!user) return;
     setSaving(true);
+    const companyRef = doc(db, "companies", user.uid);
     try {
-      if (step === 0) await saveCompanyStep(user.uid, { nombre, nit, descripcion });
-      if (step === 1) await saveCompanyStep(user.uid, { ciudad, telefono, sitioWeb });
-      if (step === 2) await saveCompanyStep(user.uid, { categorias: cats });
+      if (step === 0) {
+        await setDoc(companyRef, { nombre, nit, descripcion, ownerId: user.uid, updatedAt: serverTimestamp() }, { merge: true });
+      }
+      if (step === 1) {
+        await setDoc(companyRef, { ciudad, telefono: telefono || null, sitioWeb: sitioWeb || null, updatedAt: serverTimestamp() }, { merge: true });
+      }
+      if (step === 2) {
+        await setDoc(companyRef, { categorias: cats, updatedAt: serverTimestamp() }, { merge: true });
+      }
       if (step === 3) {
-        let logoUrl = "";
+        let logoUrl: string | null = null;
         if (logoFile) {
           const r = ref(storage, `companies/${user.uid}/logo`);
           await uploadBytes(r, logoFile);
           logoUrl = await getDownloadURL(r);
         }
-        await saveCompanyStep(user.uid, { logoUrl });
+        await setDoc(companyRef, { logoUrl, updatedAt: serverTimestamp() }, { merge: true });
         await markOnboardingComplete(user.uid);
         router.replace("/dashboard");
         return;

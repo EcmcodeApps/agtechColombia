@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import {
-  getFotos, saveGaleriaFoto, deleteGaleriaFoto,
-  getVideos, saveGaleriaVideo, deleteGaleriaVideo,
+  getGaleriaFotos as getFotos, saveGaleriaFoto, deleteGaleriaFoto,
+  getGaleriaVideos as getVideos, saveGaleriaVideo, deleteGaleriaVideo,
   getUserPlan, PLAN_LIMITS,
   type GaleriaFotoRecord, type GaleriaVideoRecord,
 } from "@/lib/firebase/firestore";
@@ -46,7 +46,7 @@ export default function GaleriaPage() {
       const r = ref(storage, `galeria/${user.uid}/fotos/${Date.now()}_${file.name}`);
       await uploadBytes(r, file);
       const url = await getDownloadURL(r);
-      const id  = await saveGaleriaFoto(user.uid, { url, titulo: "", esPrincipal: fotos.length === 0 });
+      const id  = await saveGaleriaFoto({ uid: user.uid, url, titulo: "", esPrincipal: fotos.length === 0 });
       setFotos(prev => [...prev, { id, uid: user.uid, url, titulo: "", esPrincipal: fotos.length === 0, createdAt: null as never }]);
     } catch { setError("Error al subir la foto."); }
     finally { setUploading(false); if (fotoRef.current) fotoRef.current.value = ""; }
@@ -61,7 +61,7 @@ export default function GaleriaPage() {
       const r = ref(storage, `galeria/${user.uid}/videos/${Date.now()}_${file.name}`);
       await uploadBytes(r, file);
       const url = await getDownloadURL(r);
-      const id  = await saveGaleriaVideo(user.uid, { url, titulo: "" });
+      const id  = await saveGaleriaVideo({ uid: user.uid, url, titulo: "" });
       setVideos(prev => [...prev, { id, uid: user.uid, url, titulo: "", createdAt: null as never }]);
     } catch { setError("Error al subir el video."); }
     finally { setUploading(false); if (videoRef.current) videoRef.current.value = ""; }
