@@ -72,6 +72,22 @@
         { "fieldPath": "estado", "order": "ASCENDING"  },
         { "fieldPath": "fecha",  "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "productos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "uid",       "order": "ASCENDING"  },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "productos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "destacado", "order": "ASCENDING" },
+        { "fieldPath": "estado",    "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

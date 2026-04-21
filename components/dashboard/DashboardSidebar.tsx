@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 const NAV = [
   { href: "/dashboard",               label: "Inicio",          icon: "🏠" },
   { href: "/catalogos",               label: "Catálogos",       icon: "📄" },
+  { href: "/catalogos/productos",     label: "Productos",       icon: "🛍️" },
   { href: "/catalogos/directorio",    label: "Directorio",      icon: "🏢" },
   { href: "/catalogos/representantes",label: "Representantes",  icon: "👤" },
   { href: "/catalogos/galeria",       label: "Galería",         icon: "🖼️" },

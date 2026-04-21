@@ -87,5 +87,15 @@ service cloud.firestore {
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
+
+    match /productos/{productoId} {
+      // Activos son públicos; destacados son visibles para todos
+      allow read:   if resource.data.estado == 'activo'
+                    || (isSignedIn() && resource.data.uid == request.auth.uid)
+                    || isAdmin();
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid || isAdmin();
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
   }
 }

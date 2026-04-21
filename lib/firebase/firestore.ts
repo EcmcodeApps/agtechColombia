@@ -271,3 +271,57 @@ export async function updateNoticia(noticiaId: string, data: Partial<Omit<Notici
   await updateDoc(doc(db,'noticias',noticiaId), { ...data, updatedAt: serverTimestamp() });
 }
 export async function deleteNoticia(noticiaId: string) { await deleteDoc(doc(db,'noticias',noticiaId)); }
+
+/* ── Productos & Servicios ───────────────────────────────────────────────── */
+export type ProductoTipo   = "hardware"|"software"|"servicio"|"otro";
+export type ProductoEstado = "activo"|"oculto"|"borrador";
+
+export interface ProductoRecord {
+  id?:          string;
+  uid:          string;
+  nombre:       string;
+  descripcion:  string;
+  precio:       number;
+  moneda:       "COP"|"USD";
+  tipo:         ProductoTipo;
+  estado:       ProductoEstado;
+  destacado:    boolean;
+  imagenUrl?:   string;
+  cultivos?:    string[];
+  createdAt?:   unknown;
+  updatedAt?:   unknown;
+}
+
+export const PRODUCTO_LIMITS: Record<string, number> = {
+  gratuito:    3,
+  basico:      10,
+  profesional: 20,
+  empresa:     999,
+};
+
+export async function getProductos(uid: string): Promise<ProductoRecord[]> {
+  const s = await getDocs(query(collection(db,'productos'), where('uid','==',uid), orderBy('createdAt','desc')));
+  return s.docs.map(d => ({ id: d.id, ...d.data() }) as ProductoRecord);
+}
+
+export async function getProductosActivos(uid: string): Promise<ProductoRecord[]> {
+  const s = await getDocs(query(collection(db,'productos'), where('uid','==',uid), where('estado','==','activo')));
+  return s.docs.map(d => ({ id: d.id, ...d.data() }) as ProductoRecord);
+}
+
+export async function getAllProductosDestacados(): Promise<ProductoRecord[]> {
+  const s = await getDocs(query(collection(db,'productos'), where('destacado','==',true), where('estado','==','activo')));
+  return s.docs.map(d => ({ id: d.id, ...d.data() }) as ProductoRecord);
+}
+
+export async function saveProducto(data: Omit<ProductoRecord,'id'|'createdAt'|'updatedAt'>): Promise<string> {
+  const r = doc(collection(db,'productos'));
+  await setDoc(r, { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  return r.id;
+}
+
+export async function updateProducto(id: string, data: Partial<Omit<ProductoRecord,'id'|'createdAt'>>) {
+  await updateDoc(doc(db,'productos',id), { ...data, updatedAt: serverTimestamp() });
+}
+
+export async function deleteProducto(id: string) { await deleteDoc(doc(db,'productos',id)); }
