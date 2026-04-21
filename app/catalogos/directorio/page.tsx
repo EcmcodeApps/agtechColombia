@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { getActiveCompanies, type CompanyRecord } from "@/lib/firebase/firestore";
 
 export default function DirectorioPage() {
@@ -37,7 +38,7 @@ export default function DirectorioPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(c => (
-            <div key={c.uid} className="rounded-3xl bg-surface-container-low border border-outline-variant p-5 flex flex-col gap-3">
+            <Link key={c.uid} href={`/empresa/${c.uid}`} className="rounded-3xl bg-surface-container-low border border-outline-variant p-5 flex flex-col gap-3 hover:bg-surface-container transition-colors">
               <div className="flex items-center gap-3">
                 {c.logoUrl
                   ? <img src={c.logoUrl} alt={c.nombre} className="h-12 w-12 rounded-xl object-cover border border-outline-variant" />
@@ -58,7 +59,7 @@ export default function DirectorioPage() {
                 <a href={c.sitioWeb} target="_blank" rel="noreferrer"
                   className="text-xs text-primary hover:underline truncate">{c.sitioWeb}</a>
               )}
-            </div>
+            </Link>
           ))}
         </div>
       )}

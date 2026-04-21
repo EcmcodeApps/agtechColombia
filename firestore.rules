@@ -18,8 +18,9 @@ service cloud.firestore {
     }
 
     match /companies/{uid} {
+      // Perfil activo es público (lectura sin autenticación)
       allow read:   if isOwner(uid) || isAdmin()
-                    || (isSignedIn() && resource != null && resource.data.status == "active");
+                    || (resource != null && (resource.data.activa == true || resource.data.status == "active"));
       allow create: if isOwner(uid);
       allow update: if isOwner(uid) || isAdmin();
       allow delete: if false;
@@ -40,7 +41,7 @@ service cloud.firestore {
     match /catalogos/{catId} {
       allow read:   if isSignedIn() &&
                     (resource.data.uid == request.auth.uid
-                     || (resource.data.visible == true)
+                     || resource.data.visible == true
                      || isAdmin());
       allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
       allow update: if isSignedIn() && resource.data.uid == request.auth.uid;
@@ -50,7 +51,7 @@ service cloud.firestore {
     match /representantes/{repId} {
       allow read:   if isSignedIn() &&
                     (resource.data.uid == request.auth.uid
-                     || (resource.data.visible == true)
+                     || resource.data.visible == true
                      || isAdmin());
       allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
       allow update: if isSignedIn() && resource.data.uid == request.auth.uid;
@@ -74,15 +75,14 @@ service cloud.firestore {
     }
 
     match /categoriasAgtech/{catId} {
-      allow read:   if isSignedIn();
+      allow read:   if true; // público para onboarding y directorio
       allow create: if isAdmin();
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 
     match /noticias/{noticiaId} {
-      allow read:   if isSignedIn() &&
-                    (resource.data.estado == 'publicado' || isAdmin());
+      allow read:   if resource.data.estado == 'publicado' || isAdmin();
       allow create: if isAdmin();
       allow update: if isAdmin();
       allow delete: if isAdmin();
