@@ -220,6 +220,9 @@ export async function saveCategoria(data: Omit<CategoriaRecord,'id'|'createdAt'|
 export async function updateCategoria(catId: string, data: Partial<Omit<CategoriaRecord,'id'|'createdAt'>>) {
   await updateDoc(doc(db,'categoriasAgtech',catId), { ...data, updatedAt: serverTimestamp() });
 }
+export async function deleteCategoria(catId: string) {
+  await deleteDoc(doc(db,'categoriasAgtech',catId));
+}
 export async function getConteoPorCategoria(): Promise<Record<string,number>> {
   const s = await getDocs(query(collection(db,'companies'), where('status','==','active')));
   const conteo: Record<string,number> = {};
