@@ -72,6 +72,12 @@ export async function getActiveCompanies(): Promise<CompanyRecord[]> {
   return s.docs.map(d => ({ uid: d.id, ...d.data() }) as CompanyRecord)
     .filter(c => c.activa === true || c.status === 'active');
 }
+export async function incrementarVisitas(uid: string) {
+  try {
+    const { increment } = await import('firebase/firestore');
+    await updateDoc(doc(db,'companies',uid), { visitas: increment(1) });
+  } catch { /* silent */ }
+}
 
 /* ── Pagos ───────────────────────────────────────────────────────────────── */
 export interface PagoRecord {
