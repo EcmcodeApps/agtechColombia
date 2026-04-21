@@ -13,6 +13,7 @@ const NAV = [
   { href: "/catalogos/galeria",       label: "Galería",         icon: "🖼️" },
   { href: "/pagos",                   label: "Pagos",           icon: "💳" },
   { href: "/planes",                  label: "Planes",          icon: "⭐" },
+  { href: "/dashboard/perfil",        label: "Perfil",          icon: "✏️" },
   { href: "/dashboard/ajustes",       label: "Ajustes",         icon: "⚙️" },
 ];
 
