@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   getCategorias as getCategories, saveCategoria, updateCategoria, deleteCategoria,
-  type CategoriaRecord,
+  seedCategorias, type CategoriaRecord,
 } from "@/lib/firebase/firestore";
 
 const BLANK: Omit<CategoriaRecord, "id" | "createdAt"> = {
@@ -53,10 +53,16 @@ export default function AdminCategoriasPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-on-surface font-headline">Categorías</h1>
-        <button onClick={openNew}
-          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:opacity-90 transition-opacity">
-          + Nueva
-        </button>
+        <div className="flex gap-2">
+          <button onClick={async () => { await seedCategorias(); getCategories().then(c => setCats(c)); }}
+            className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
+            🌱 Sembrar datos
+          </button>
+          <button onClick={openNew}
+            className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:opacity-90 transition-opacity">
+            + Nueva
+          </button>
+        </div>
       </div>
 
       {loading ? (

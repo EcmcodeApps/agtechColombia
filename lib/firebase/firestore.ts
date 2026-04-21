@@ -208,8 +208,9 @@ export async function getCategorias(): Promise<CategoriaRecord[]> {
   return s.docs.map(d => ({ id: d.id, ...d.data() }) as CategoriaRecord);
 }
 export async function getCategoriasActivas(): Promise<CategoriaRecord[]> {
-  const s = await getDocs(query(collection(db,'categoriasAgtech'), where('activa','==',true), where('archivada','==',false), orderBy('orden','asc')));
-  return s.docs.map(d => ({ id: d.id, ...d.data() }) as CategoriaRecord);
+  const s = await getDocs(query(collection(db,'categoriasAgtech'), orderBy('orden','asc')));
+  return s.docs.map(d => ({ id: d.id, ...d.data() }) as CategoriaRecord)
+    .filter(c => c.activa && !c.archivada);
 }
 export async function saveCategoria(data: Omit<CategoriaRecord,'id'|'createdAt'|'updatedAt'>): Promise<string> {
   const r = doc(collection(db,'categoriasAgtech'));
@@ -236,6 +237,12 @@ export const CATEGORIAS_SEED: Omit<CategoriaRecord,'id'|'createdAt'|'updatedAt'>
   { nombre:"Gestión del Agua",               slug:"gestion-agua",           descripcion:"Riego inteligente, monitoreo de cuencas y tecnologías de captura de lluvia.", icono:"💧", color:"#0ea5e9", activa:true, archivada:false, orden:7 },
   { nombre:"Post-Cosecha Tech",              slug:"post-cosecha",           descripcion:"Almacenamiento, procesamiento mínimo y vida útil extendida para reducir pérdidas.", icono:"🌡️", color:"#ef4444", activa:true, archivada:false, orden:8 },
 ];
+
+export async function seedCategorias(): Promise<void> {
+  const existing = await getDocs(collection(db,'categoriasAgtech'));
+  if (existing.size > 0) return; // ya sembradas
+  await Promise.all(CATEGORIAS_SEED.map(c => saveCategoria(c)));
+}
 
 /* ── Noticias & Eventos ──────────────────────────────────────────────────── */
 export interface NoticiaRecord {
