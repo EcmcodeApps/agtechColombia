@@ -470,7 +470,7 @@ export default function DirectorioPage() {
             {/* Mobile filter button */}
             <button onClick={() => setSidebarOpen(true)}
               className="lg:hidden flex items-center gap-1.5 bg-white border border-outline-variant rounded-xl px-3 py-2 text-xs font-medium text-on-surface-variant hover:border-primary">
-              ⚙️ Filtros {(depts.length++(size?1:0)+(verified?1:0))>0 && <span className="bg-primary text-on-primary rounded-full w-4 h-4 text-[10px] flex items-center justify-center">{depts.length+(size?1:0)+(verified?1:0)}</span>}
+              ⚙️ Filtros {(depts.length + (size ? 1 : 0) + (verified ? 1 : 0)) > 0 && <span className="bg-primary text-on-primary rounded-full w-4 h-4 text-[10px] flex items-center justify-center">{depts.length + (size ? 1 : 0) + (verified ? 1 : 0)}</span>}
             </button>
 
             <div className="flex-1 relative min-w-[200px]">
