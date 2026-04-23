@@ -88,6 +88,31 @@
         { "fieldPath": "destacado", "order": "ASCENDING" },
         { "fieldPath": "estado",    "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "foro",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "estado",    "order": "ASCENDING"  },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "foro",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "estado",    "order": "ASCENDING"  },
+        { "fieldPath": "categoria", "order": "ASCENDING"  },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "foroComentarios",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "postId",    "order": "ASCENDING"  },
+        { "fieldPath": "createdAt", "order": "ASCENDING"  }
+      ]
     }
   ],
   "fieldOverrides": []

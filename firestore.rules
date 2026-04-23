@@ -97,5 +97,35 @@ service cloud.firestore {
       allow update: if isSignedIn() && resource.data.uid == request.auth.uid || isAdmin();
       allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
     }
+
+    // ── Foro ─────────────────────────────────────────────────────────────────
+    match /foro/{postId} {
+      // Posts publicados son públicos (lectura sin autenticación)
+      allow read:   if resource.data.estado == 'publicado'
+                    || (isSignedIn() && resource.data.uid == request.auth.uid)
+                    || isAdmin();
+      // Crear post: usuario autenticado, el uid del post debe coincidir
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      // Actualizar: el autor puede editar su propio post; cualquier autenticado puede
+      // actualizar solo los campos likes/likedBy (para dar like)
+      allow update: if isAdmin()
+                    || (isSignedIn() && resource.data.uid == request.auth.uid)
+                    || (isSignedIn() &&
+                        request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['likes','likedBy','comentariosCount']));
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid || isAdmin();
+    }
+
+    // ── Foro comentarios ──────────────────────────────────────────────────────
+    match /foroComentarios/{comentarioId} {
+      // Comentarios son públicos si el post es público
+      allow read:   if true;
+      // Crear: usuario autenticado y uid coincide
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      // Actualizar: solo el autor o admin
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid || isAdmin();
+      // Eliminar: solo el autor o admin
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid || isAdmin();
+    }
   }
 }

@@ -43,9 +43,17 @@ export interface CompanyStep3 {
 }
 export interface CompanyRecord {
   uid: string; ownerId?: string; status?: string; activa?: boolean; plan?: string;
-  nombre?: string; nit?: string; descripcion?: string;
-  ciudad?: string; telefono?: string; sitioWeb?: string;
-  categorias?: string[]; logoUrl?: string;
+  // flat fields (onboarding directo)
+  nombreComercial?: string; razonSocial?: string; nit?: string; anioFundacion?: string;
+  ciudad?: string; departamento?: string; tamano?: "1-10"|"11-50"|"51+";
+  sitioWeb?: string; logoUrl?: string; portadaUrl?: string;
+  categorias?: string[]; cultivos?: string[]; zonas?: string[];
+  pitchCorto?: string; descripcionCompleta?: string;
+  contacto?: { nombre?: string; cargo?: string; fotoUrl?: string; whatsapp?: string; correo?: string; linkedin?: string };
+  redes?: { instagram?: string; facebook?: string; twitter?: string; youtube?: string };
+  visitas?: number; descargas?: number; calificacion?: number;
+  // legacy fields
+  nombre?: string; descripcion?: string; telefono?: string;
   createdAt?: unknown; updatedAt?: unknown;
   // legacy step-based fields
   step1?: CompanyStep1; step2?: CompanyStep2; step3?: CompanyStep3;
@@ -331,3 +339,90 @@ export async function updateProducto(id: string, data: Partial<Omit<ProductoReco
 }
 
 export async function deleteProducto(id: string) { await deleteDoc(doc(db,'productos',id)); }
+
+/* ── Foro ────────────────────────────────────────────────────────────────── */
+export type ForoCategoria = 'tecnologia'|'cultivos'|'maquinaria'|'mercados'|'financiamiento'|'general';
+
+export interface ForoPost {
+  id?:               string;
+  uid:               string;
+  autorNombre:       string;
+  autorFotoUrl?:     string;
+  titulo:            string;
+  cuerpo:            string;
+  imagenUrl?:        string;
+  categoria:         ForoCategoria;
+  likes:             number;
+  likedBy?:          string[];
+  comentariosCount:  number;
+  calificacion:      number;
+  estado:            'publicado'|'borrador';
+  destacado?:        boolean;
+  createdAt?:        unknown;
+  updatedAt?:        unknown;
+}
+
+export interface ForoComentario {
+  id?:           string;
+  postId:        string;
+  uid:           string;
+  autorNombre:   string;
+  autorFotoUrl?: string;
+  texto:         string;
+  likes:         number;
+  likedBy?:      string[];
+  createdAt?:    unknown;
+}
+
+export async function getForoPosts(categoria?: ForoCategoria): Promise<ForoPost[]> {
+  const base = collection(db, 'foro');
+  const q = categoria
+    ? query(base, where('estado','==','publicado'), where('categoria','==',categoria), orderBy('createdAt','desc'))
+    : query(base, where('estado','==','publicado'), orderBy('createdAt','desc'));
+  const s = await getDocs(q);
+  return s.docs.map(d => ({ id: d.id, ...d.data() }) as ForoPost);
+}
+
+export async function getForoPost(id: string): Promise<ForoPost|null> {
+  const s = await getDoc(doc(db,'foro',id));
+  return s.exists() ? { id: s.id, ...s.data() } as ForoPost : null;
+}
+
+export async function saveForoPost(data: Omit<ForoPost,'id'|'createdAt'|'updatedAt'>): Promise<string> {
+  const r = doc(collection(db,'foro'));
+  await setDoc(r, { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  return r.id;
+}
+
+export async function updateForoPost(id: string, data: Partial<Omit<ForoPost,'id'|'createdAt'>>) {
+  await updateDoc(doc(db,'foro',id), { ...data, updatedAt: serverTimestamp() });
+}
+
+export async function deleteForoPost(id: string) { await deleteDoc(doc(db,'foro',id)); }
+
+export async function toggleLikePost(postId: string, uid: string, liked: boolean) {
+  const { arrayUnion, arrayRemove, increment } = await import('firebase/firestore');
+  await updateDoc(doc(db,'foro',postId), {
+    likedBy: liked ? arrayUnion(uid) : arrayRemove(uid),
+    likes:   increment(liked ? 1 : -1),
+  });
+}
+
+export async function getForoComentarios(postId: string): Promise<ForoComentario[]> {
+  const s = await getDocs(query(collection(db,'foroComentarios'), where('postId','==',postId), orderBy('createdAt','asc')));
+  return s.docs.map(d => ({ id: d.id, ...d.data() }) as ForoComentario);
+}
+
+export async function saveForoComentario(data: Omit<ForoComentario,'id'|'createdAt'>): Promise<string> {
+  const { increment } = await import('firebase/firestore');
+  const r = doc(collection(db,'foroComentarios'));
+  await setDoc(r, { ...data, createdAt: serverTimestamp() });
+  await updateDoc(doc(db,'foro',data.postId), { comentariosCount: increment(1) });
+  return r.id;
+}
+
+export async function deleteForoComentario(id: string, postId: string) {
+  const { increment } = await import('firebase/firestore');
+  await deleteDoc(doc(db,'foroComentarios',id));
+  await updateDoc(doc(db,'foro',postId), { comentariosCount: increment(-1) });
+}
