@@ -1,10 +1,8 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import {
   getActiveCompanies, getCategoriasActivas,
@@ -233,7 +231,6 @@ function SidebarFilters({
 /* ── Main page ───────────────────────────────────────────────────────────── */
 export default function DirectorioPage() {
   const router      = useRouter();
-  const searchParams = useSearchParams();
   const [user, setUser]             = useState<User|null>(null);
   const [companies, setCompanies]   = useState<CompanyRecord[]>([]);
   const [cats, setCats]             = useState<CategoriaRecord[]>([]);
@@ -241,7 +238,7 @@ export default function DirectorioPage() {
   const [view, setView]             = useState<"grid"|"list">("grid");
   const [sort, setSort]             = useState<SortMode>("recent");
   const [search, setSearch]         = useState("");
-  const [selectedCat, setSelectedCat] = useState<string>(searchParams.get("cat") ?? "");
+  const [selectedCat, setSelectedCat] = useState<string>("");
   const [page, setPage]             = useState(1);
   // filter state (staged until Apply is clicked)
   const [stagedDepts, setStagedDepts]     = useState<string[]>([]);
@@ -311,7 +308,6 @@ export default function DirectorioPage() {
   function handleCatSelect(slug: string) {
     setSelectedCat(slug);
     setPage(1);
-    router.push(slug ? `/directorio?cat=${slug}` : "/directorio", { scroll: false });
   }
 
   function applyFilters() {
