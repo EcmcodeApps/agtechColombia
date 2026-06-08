@@ -182,13 +182,11 @@ function Hero() {
         </span>
 
         {/* Titular */}
-        <h1 className="text-[2.3rem] sm:text-5xl md:text-[3.4rem] lg:text-[3.8rem]
-                       font-bold text-white leading-[1.12] font-headline drop-shadow-lg">
-          Conecta con el<br className="hidden sm:block"/>
-          ecosistema{" "}
+        <h1 className="text-3xl sm:text-5xl md:text-[3.4rem] lg:text-[3.8rem]
+                       font-bold text-white leading-[1.18] font-headline drop-shadow-lg">
+          Conecta con el ecosistema{" "}
           <span className="text-[oklch(0.82_0.20_85)]">AgTech</span>
-          <br className="hidden sm:block"/>
-          de Colombia
+          {" "}de Colombia
         </h1>
 
         {/* Subtítulo */}
