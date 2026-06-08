@@ -4,6 +4,8 @@ import {
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   sendPasswordResetEmail,
   updateEmail,
   User,
@@ -19,7 +21,26 @@ export async function login(email: string, password: string) {
 }
 
 export async function loginWithGoogle() {
-  return signInWithPopup(auth, new GoogleAuthProvider());
+  const provider = new GoogleAuthProvider();
+  provider.addScope("email");
+  provider.addScope("profile");
+  try {
+    // Intenta popup primero (escritorio)
+    return await signInWithPopup(auth, provider);
+  } catch (err: unknown) {
+    const code = (err as { code?: string }).code ?? "";
+    // Si el popup es bloqueado → usa redirect (móvil/Safari)
+    if (code === "auth/popup-blocked" || code === "auth/popup-closed-by-user") {
+      await signInWithRedirect(auth, provider);
+      // getRedirectResult se maneja en la página al volver
+      return null;
+    }
+    throw err;
+  }
+}
+
+export async function getGoogleRedirectResult() {
+  return getRedirectResult(auth);
 }
 
 export async function logout() {

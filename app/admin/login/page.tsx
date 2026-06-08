@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { login, loginWithGoogle } from "@/lib/firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { login, loginWithGoogle, getGoogleRedirectResult } from "@/lib/firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 
 async function checkAdmin(uid: string): Promise<boolean> {
@@ -20,17 +20,33 @@ export default function AdminLoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
 
+  // Maneja el resultado si vino de signInWithRedirect
+  useEffect(() => {
+    setGoogleLoading(true);
+    getGoogleRedirectResult()
+      .then(async result => {
+        if (!result) return;
+        const ok = await checkAdmin(result.user.uid);
+        if (!ok) { setError("Esta cuenta no tiene permisos de administrador."); return; }
+        router.replace("/admin/dashboard");
+      })
+      .catch(() => {/* no hay redirect pendiente */})
+      .finally(() => setGoogleLoading(false));
+  }, [router]);
+
   async function handleGoogle() {
     setError(""); setGoogleLoading(true);
     try {
-      const cred = await loginWithGoogle();
-      const ok   = await checkAdmin(cred.user.uid);
+      const result = await loginWithGoogle();
+      // Si result es null → se activó redirect, el usuario volverá
+      if (!result) return;
+      const ok = await checkAdmin(result.user.uid);
       if (!ok) { setError("Esta cuenta no tiene permisos de administrador."); return; }
       router.replace("/admin/dashboard");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "";
       if (msg.includes("popup-closed"))       setError("Ventana cerrada. Intenta de nuevo.");
-      else if (msg.includes("popup-blocked")) setError("Permite ventanas emergentes en tu navegador.");
+      else if (msg.includes("popup-blocked")) setError("Redirigiendo a Google…");
       else setError("Error con Google. Intenta de nuevo.");
     } finally { setGoogleLoading(false); }
   }
@@ -51,24 +67,16 @@ export default function AdminLoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[oklch(0.20_0.08_160)] px-4">
       <div className="w-full max-w-sm flex flex-col gap-5">
-
-        {/* Header */}
         <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg">
-            🌱
-          </div>
+          <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg">🌱</div>
           <h1 className="text-2xl font-bold text-white font-headline">Panel Admin</h1>
           <p className="text-sm text-white/60 mt-1">AgTech Colombia</p>
         </div>
 
         <div className="bg-white rounded-3xl shadow-2xl p-7 flex flex-col gap-5">
-
           {/* Google */}
           <button onClick={handleGoogle} disabled={googleLoading || loading}
-            className="w-full flex items-center justify-center gap-3 border-2 border-outline-variant
-                       rounded-xl py-3 text-sm font-semibold text-on-surface
-                       hover:border-primary hover:bg-surface-container-low
-                       transition-all disabled:opacity-60 active:scale-[0.99]">
+            className="w-full flex items-center justify-center gap-3 border-2 border-outline-variant rounded-xl py-3 text-sm font-semibold text-on-surface hover:border-primary hover:bg-surface-container-low transition-all disabled:opacity-60 active:scale-[0.99]">
             {googleLoading ? (
               <svg className="w-5 h-5 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
@@ -85,33 +93,27 @@ export default function AdminLoginPage() {
             {googleLoading ? "Verificando…" : "Ingresar con Google"}
           </button>
 
-          {/* Divider */}
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-outline-variant"/>
             <span className="text-xs text-on-surface-variant font-medium">o con correo</span>
             <div className="flex-1 h-px bg-outline-variant"/>
           </div>
 
-          {/* Email form */}
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
               <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">Correo electrónico</label>
               <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
                 placeholder="admin@empresa.com" autoComplete="email"
-                className="w-full rounded-xl border border-outline-variant bg-surface px-4 py-3 text-sm
-                           outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"/>
+                className="w-full rounded-xl border border-outline-variant bg-surface px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"/>
             </div>
-
             <div>
               <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">Contraseña</label>
               <div className="relative">
                 <input type={showPass ? "text" : "password"} required value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••" autoComplete="current-password"
-                  className="w-full rounded-xl border border-outline-variant bg-surface px-4 py-3 pr-11 text-sm
-                             outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"/>
+                  onChange={e => setPassword(e.target.value)} placeholder="••••••••"
+                  className="w-full rounded-xl border border-outline-variant bg-surface px-4 py-3 pr-11 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"/>
                 <button type="button" onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface text-lg">
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">
                   {showPass ? "🙈" : "👁️"}
                 </button>
               </div>
@@ -125,24 +127,13 @@ export default function AdminLoginPage() {
             )}
 
             <button type="submit" disabled={loading || googleLoading}
-              className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-on-primary
-                         hover:bg-[oklch(0.40_0.15_160)] disabled:opacity-60 transition-all active:scale-[0.99]">
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                  </svg>
-                  Verificando…
-                </span>
-              ) : "Entrar"}
+              className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-on-primary hover:bg-[oklch(0.40_0.15_160)] disabled:opacity-60 transition-all">
+              {loading ? "Verificando…" : "Entrar"}
             </button>
           </form>
         </div>
 
-        <p className="text-center text-xs text-white/40">
-          Acceso restringido · Solo administradores autorizados
-        </p>
+        <p className="text-center text-xs text-white/40">Acceso restringido · Solo administradores autorizados</p>
       </div>
     </div>
   );
