@@ -70,6 +70,7 @@ export default function AdminDashboard() {
             { href: "/admin/usuarios",   icon: "👥", title: "Ver usuarios",         desc: "Listado completo de usuarios registrados" },
             { href: "/admin/categorias", icon: "🏷️", title: "Categorías",           desc: "Gestionar categorías del directorio" },
             { href: "/admin/noticias",   icon: "📰", title: "Noticias",             desc: "Publicar y gestionar noticias AgTech" },
+            { href: "/admin/exportar",   icon: "📤", title: "Exportar datos",        desc: "Exportar empresas a Excel o CSV con filtros" },
           ].map(item => (
             <Link key={item.href} href={item.href}
               className="bg-white rounded-2xl border border-outline-variant/40 p-4

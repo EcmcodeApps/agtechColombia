@@ -11,6 +11,7 @@ const NAV = [
   { href: "/admin/empresas",   label: "🏢 Empresas"   },
   { href: "/admin/usuarios",   label: "👥 Usuarios"   },
   { href: "/admin/pagos",      label: "💳 Pagos"      },
+  { href: "/admin/exportar",   label: "📤 Exportar"   },
   { href: "/admin/categorias", label: "🏷️ Categorías" },
   { href: "/admin/noticias",   label: "📰 Noticias"   },
 ];
