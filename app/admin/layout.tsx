@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import AdminGuard from "@/components/admin/AdminGuard";
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import { isJuntaSession } from "@/components/admin/AdminGuard";
 
 const NAV = [
   { href: "/admin/dashboard",  label: "📊 Dashboard"  },
@@ -16,7 +17,12 @@ const NAV = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname  = usePathname();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen,  setMenuOpen]  = useState(false);
+  const [esJunta,   setEsJunta]   = useState(false);
+
+  useEffect(() => {
+    setEsJunta(isJuntaSession());
+  }, []);
 
   // La página de login NO lleva guard ni sidebar
   if (pathname === "/admin/login") {
@@ -48,6 +54,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               🌱 AgTech Admin
             </span>
           </header>
+
+          {/* Banner modo junta */}
+          {esJunta && (
+            <div className="bg-amber-400 text-amber-900 text-xs font-semibold
+                            px-4 py-2 flex items-center justify-center gap-2 text-center">
+              🏛️ Modo Junta Directiva — Acceso temporal activo (8 horas). Solo lectura y consulta.
+            </div>
+          )}
 
           {/* Contenido de la página */}
           <main className="flex-1 overflow-auto">

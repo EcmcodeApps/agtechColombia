@@ -3,12 +3,26 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { login, loginWithGoogle, getGoogleRedirectResult } from "@/lib/firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 
 async function checkAdmin(uid: string): Promise<boolean> {
   const snap = await getDoc(doc(db, "admins", uid));
   return snap.exists();
+}
+
+/** Verifica el código contra Firestore config/junta_acceso */
+async function verificarCodigoJunta(codigo: string): Promise<boolean> {
+  const snap = await getDoc(doc(db, "config", "junta_acceso"));
+  if (!snap.exists()) return false;
+  const data = snap.data();
+  if (!data.activo) return false;
+  if (data.codigo !== codigo.trim()) return false;
+  if (data.expira) {
+    const expiraMs = data.expira.toMillis ? data.expira.toMillis() : data.expira;
+    if (Date.now() > expiraMs) return false;
+  }
+  return true;
 }
 
 export default function AdminLoginPage() {
@@ -20,7 +34,13 @@ export default function AdminLoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
 
-  // Maneja el resultado si vino de signInWithRedirect
+  // Modal acceso junta
+  const [showJunta,    setShowJunta]    = useState(false);
+  const [codigoJunta,  setCodigoJunta]  = useState("");
+  const [juntaError,   setJuntaError]   = useState("");
+  const [juntaLoading, setJuntaLoading] = useState(false);
+
+  // Maneja resultado redirect de Google
   useEffect(() => {
     setGoogleLoading(true);
     getGoogleRedirectResult()
@@ -30,7 +50,7 @@ export default function AdminLoginPage() {
         if (!ok) { setError("Esta cuenta no tiene permisos de administrador."); return; }
         router.replace("/admin/dashboard");
       })
-      .catch(() => {/* no hay redirect pendiente */})
+      .catch(() => {})
       .finally(() => setGoogleLoading(false));
   }, [router]);
 
@@ -38,7 +58,6 @@ export default function AdminLoginPage() {
     setError(""); setGoogleLoading(true);
     try {
       const result = await loginWithGoogle();
-      // Si result es null → se activó redirect, el usuario volverá
       if (!result) return;
       const ok = await checkAdmin(result.user.uid);
       if (!ok) { setError("Esta cuenta no tiene permisos de administrador."); return; }
@@ -64,19 +83,47 @@ export default function AdminLoginPage() {
     } finally { setLoading(false); }
   }
 
+  async function handleJuntaAcceso(e: React.FormEvent) {
+    e.preventDefault();
+    setJuntaError(""); setJuntaLoading(true);
+    try {
+      const valido = await verificarCodigoJunta(codigoJunta);
+      if (!valido) {
+        setJuntaError("Código incorrecto o acceso desactivado.");
+        return;
+      }
+      // Sesión temporal 8 horas
+      sessionStorage.setItem("junta_session", JSON.stringify({
+        expira: Date.now() + 8 * 60 * 60 * 1000,
+        tipo: "junta",
+      }));
+      router.replace("/admin/dashboard");
+    } catch {
+      setJuntaError("Error al verificar el código. Intenta de nuevo.");
+    } finally { setJuntaLoading(false); }
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[oklch(0.20_0.08_160)] px-4">
       <div className="w-full max-w-sm flex flex-col gap-5">
+
+        {/* Logo */}
         <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg">🌱</div>
+          <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg">
+            🌱
+          </div>
           <h1 className="text-2xl font-bold text-white font-headline">Panel Admin</h1>
           <p className="text-sm text-white/60 mt-1">AgTech Colombia</p>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-2xl p-7 flex flex-col gap-5">
+        <div className="bg-white rounded-3xl shadow-2xl p-7 flex flex-col gap-4">
+
           {/* Google */}
           <button onClick={handleGoogle} disabled={googleLoading || loading}
-            className="w-full flex items-center justify-center gap-3 border-2 border-outline-variant rounded-xl py-3 text-sm font-semibold text-on-surface hover:border-primary hover:bg-surface-container-low transition-all disabled:opacity-60 active:scale-[0.99]">
+            className="w-full flex items-center justify-center gap-3 border-2 border-outline-variant
+                       rounded-xl py-3 text-sm font-semibold text-on-surface
+                       hover:border-primary hover:bg-surface-container-low
+                       transition-all disabled:opacity-60 active:scale-[0.99]">
             {googleLoading ? (
               <svg className="w-5 h-5 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
@@ -93,6 +140,20 @@ export default function AdminLoginPage() {
             {googleLoading ? "Verificando…" : "Ingresar con Google"}
           </button>
 
+          {/* ── BOTÓN JUNTA DIRECTIVA ── */}
+          <button
+            onClick={() => { setShowJunta(true); setJuntaError(""); setCodigoJunta(""); }}
+            disabled={loading || googleLoading}
+            className="w-full flex items-center justify-center gap-2 rounded-xl py-3
+                       text-sm font-semibold border-2 border-amber-300 bg-amber-50
+                       text-amber-800 hover:bg-amber-100 transition-all
+                       disabled:opacity-60 active:scale-[0.99]">
+            🏛️ Acceso Junta Directiva
+            <span className="text-[10px] bg-amber-200 text-amber-700 px-2 py-0.5 rounded-full font-bold">
+              TEMPORAL
+            </span>
+          </button>
+
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-outline-variant"/>
             <span className="text-xs text-on-surface-variant font-medium">o con correo</span>
@@ -101,17 +162,21 @@ export default function AdminLoginPage() {
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">Correo electrónico</label>
+              <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
+                Correo electrónico
+              </label>
               <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
                 placeholder="admin@empresa.com" autoComplete="email"
-                className="w-full rounded-xl border border-outline-variant bg-surface px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"/>
+                className="w-full rounded-xl border border-outline-variant bg-surface px-4 py-3 text-sm
+                           outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"/>
             </div>
             <div>
               <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">Contraseña</label>
               <div className="relative">
                 <input type={showPass ? "text" : "password"} required value={password}
                   onChange={e => setPassword(e.target.value)} placeholder="••••••••"
-                  className="w-full rounded-xl border border-outline-variant bg-surface px-4 py-3 pr-11 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"/>
+                  className="w-full rounded-xl border border-outline-variant bg-surface px-4 py-3 pr-11 text-sm
+                             outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"/>
                 <button type="button" onClick={() => setShowPass(!showPass)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">
                   {showPass ? "🙈" : "👁️"}
@@ -127,14 +192,83 @@ export default function AdminLoginPage() {
             )}
 
             <button type="submit" disabled={loading || googleLoading}
-              className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-on-primary hover:bg-[oklch(0.40_0.15_160)] disabled:opacity-60 transition-all">
+              className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-on-primary
+                         hover:bg-[oklch(0.40_0.15_160)] disabled:opacity-60 transition-all">
               {loading ? "Verificando…" : "Entrar"}
             </button>
           </form>
         </div>
 
-        <p className="text-center text-xs text-white/40">Acceso restringido · Solo administradores autorizados</p>
+        <p className="text-center text-xs text-white/40">
+          Acceso restringido · Solo administradores autorizados
+        </p>
       </div>
+
+      {/* ── MODAL ACCESO JUNTA ── */}
+      {showJunta && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4
+                        bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-7 flex flex-col gap-5">
+
+            <div className="text-center">
+              <div className="text-4xl mb-2">🏛️</div>
+              <h2 className="text-lg font-bold text-on-surface font-headline">
+                Acceso Junta Directiva
+              </h2>
+              <p className="text-sm text-on-surface-variant mt-1 leading-relaxed">
+                Ingresa el código proporcionado por la presidenta de AgTech Colombia.
+              </p>
+            </div>
+
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              <span className="text-amber-500 text-base shrink-0 mt-0.5">⚠️</span>
+              <p className="text-xs text-amber-700 leading-relaxed">
+                Acceso <strong>temporal de 8 horas</strong>. Puede ser revocado por la presidenta en cualquier momento.
+              </p>
+            </div>
+
+            <form onSubmit={handleJuntaAcceso} className="flex flex-col gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
+                  Código de acceso
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={codigoJunta}
+                  onChange={e => setCodigoJunta(e.target.value)}
+                  placeholder="Escribe el código aquí"
+                  autoComplete="off"
+                  autoFocus
+                  className="w-full rounded-xl border-2 border-amber-200 bg-amber-50/50 px-4 py-3
+                             text-sm outline-none focus:border-amber-400 focus:ring-2
+                             focus:ring-amber-200 text-center font-mono tracking-widest transition-all"
+                />
+              </div>
+
+              {juntaError && (
+                <div className="flex items-start gap-2 bg-error-container rounded-xl px-4 py-3">
+                  <span className="text-error">⚠️</span>
+                  <p className="text-sm text-error leading-snug">{juntaError}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setShowJunta(false)}
+                  className="flex-1 rounded-xl border-2 border-outline-variant py-3 text-sm
+                             font-semibold text-on-surface-variant hover:bg-surface-container transition-all">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={juntaLoading || !codigoJunta.trim()}
+                  className="flex-1 rounded-xl bg-amber-500 py-3 text-sm font-bold text-white
+                             hover:bg-amber-600 disabled:opacity-60 transition-all">
+                  {juntaLoading ? "Verificando…" : "Ingresar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
