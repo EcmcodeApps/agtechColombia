@@ -98,6 +98,13 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
     }
 
+    // ── Config global (junta_acceso, etc.) ───────────────────────────────────
+    match /config/{docId} {
+      // Solo junta_acceso es de lectura pública (para verificar el código sin login)
+      allow read:   if docId == "junta_acceso" || isAdmin();
+      allow write:  if isAdmin();
+    }
+
     // ── Foro ─────────────────────────────────────────────────────────────────
     match /foro/{postId} {
       // Posts publicados son públicos (lectura sin autenticación)
