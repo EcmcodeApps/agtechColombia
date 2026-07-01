@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { register, loginWithGoogle } from "@/lib/firebase/auth";
+import { register, loginWithGoogle, getGoogleRedirectResult } from "@/lib/firebase/auth";
 import { createUserProfile, getUserProfile } from "@/lib/firebase/firestore";
 
 export default function RegisterPage() {
@@ -17,11 +17,36 @@ export default function RegisterPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
 
+  // Captura resultado cuando Google redirige de vuelta (móvil/popup-bloqueado)
+  useEffect(() => {
+    setGoogleLoading(true);
+    getGoogleRedirectResult()
+      .then(async result => {
+        if (!result) return;
+        const u = result.user;
+        const existing = await getUserProfile(u.uid);
+        if (!existing) {
+          await createUserProfile(u.uid, {
+            email: u.email ?? "",
+            displayName: u.displayName ?? u.email ?? "Usuario",
+            photoURL: u.photoURL ?? "",
+            onboardingCompleted: false,
+          });
+          router.replace("/onboarding");
+        } else {
+          router.replace(existing.onboardingCompleted ? "/dashboard" : "/onboarding");
+        }
+      })
+      .catch(() => {})
+      .finally(() => setGoogleLoading(false));
+  }, [router]);
+
   /* ── Google ── */
   async function handleGoogle() {
     setError(""); setGoogleLoading(true);
     try {
       const cred = await loginWithGoogle();
+      if (!cred) return; // redirect en curso, el useEffect lo maneja al volver
       const u    = cred.user;
       // Crear perfil si no existe
       const existing = await getUserProfile(u.uid);

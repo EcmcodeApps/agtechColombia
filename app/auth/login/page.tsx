@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { login, loginWithGoogle } from "@/lib/firebase/auth";
+import { login, loginWithGoogle, getGoogleRedirectResult } from "@/lib/firebase/auth";
 import { getUserProfile, createUserProfile } from "@/lib/firebase/firestore";
 
 export default function LoginPage() {
@@ -19,6 +19,30 @@ export default function LoginPage() {
     const profile = await getUserProfile(uid);
     router.replace(profile?.onboardingCompleted ? "/dashboard" : "/onboarding");
   }
+
+  // Captura el resultado cuando Google redirige de vuelta (móvil/popup-bloqueado)
+  useEffect(() => {
+    setGoogleLoading(true);
+    getGoogleRedirectResult()
+      .then(async result => {
+        if (!result) return;
+        const u = result.user;
+        const profile = await getUserProfile(u.uid);
+        if (!profile) {
+          await createUserProfile(u.uid, {
+            email: u.email ?? "",
+            displayName: u.displayName ?? "",
+            photoURL: u.photoURL ?? "",
+            onboardingCompleted: false,
+          });
+          router.replace("/onboarding");
+        } else {
+          router.replace(profile.onboardingCompleted ? "/dashboard" : "/onboarding");
+        }
+      })
+      .catch(() => {})
+      .finally(() => setGoogleLoading(false));
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,6 +64,7 @@ export default function LoginPage() {
     setError(""); setGoogleLoading(true);
     try {
       const cred = await loginWithGoogle();
+      if (!cred) return; // redirect en curso, el useEffect lo maneja al volver
       const u = cred.user;
       const profile = await getUserProfile(u.uid);
       if (!profile) {
