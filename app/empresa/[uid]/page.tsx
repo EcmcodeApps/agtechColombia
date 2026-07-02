@@ -63,14 +63,12 @@ export default function PerfilPublicoPage() {
 
       {/* ── Top nav ── */}
       <nav className="sticky top-0 z-40 flex items-center justify-between bg-surface/90 backdrop-blur border-b border-outline-variant px-4 md:px-8 py-3">
-        <Link href="/catalogos/directorio" className="flex items-center gap-2 text-sm font-medium text-on-surface-variant hover:text-on-surface">
+        <Link href="/directorio" className="flex items-center gap-2 text-sm font-medium text-on-surface-variant hover:text-on-surface">
           <span>←</span> <span className="hidden sm:inline">Directorio</span>
         </Link>
         <span className="font-bold text-primary font-headline text-base">AgTech Colombia</span>
-        {isOwner
-          ? <Link href="/dashboard/perfil" className="rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-on-primary hover:opacity-90">Editar perfil</Link>
-          : <button className="rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-on-primary hover:opacity-90">Conectar</button>
-        }
+        {/* Espacio reservado para alinear — sin botón de editar en página pública */}
+        <div className="w-24" />
       </nav>
 
       {/* ── Hero: portada + logo ── */}
@@ -133,16 +131,51 @@ export default function PerfilPublicoPage() {
           </div>
 
           {/* Action buttons */}
-          <div className="flex gap-2 shrink-0">
+          <div className="flex gap-2 shrink-0 flex-wrap justify-end">
             {company.sitioWeb && (
               <a href={company.sitioWeb} target="_blank" rel="noreferrer"
                 className="flex items-center gap-1.5 rounded-xl border border-outline-variant px-4 py-2.5 text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
                 🌐 Web
               </a>
             )}
-            <button className="rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-on-primary hover:opacity-90 transition-opacity">
-              Conectar
-            </button>
+            {/* Botón WhatsApp — usa teléfono de la empresa */}
+            {(() => {
+              const raw = (company as Record<string,unknown>).whatsapp as string
+                       || (company as Record<string,unknown>).telefono as string
+                       || "";
+              const digits = raw.replace(/\D/g, "");
+              const phone  = digits.startsWith("57") ? digits : digits ? `57${digits}` : "";
+              const nombre = company.nombreComercial ?? company.nombre ?? "empresa";
+              const msg    = encodeURIComponent(`Hola ${nombre}, vi tu perfil en AgTech Colombia y me interesa conectar.`);
+              if (!phone) return (
+                <a href={`mailto:${(company as Record<string,unknown>).email ?? ""}`}
+                  className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-green-700 transition-colors">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                  </svg>
+                  Contactar
+                </a>
+              );
+              return (
+                <a href={`https://wa.me/${phone}?text=${msg}`} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-green-700 transition-colors shadow-md">
+                  {/* WhatsApp icon */}
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                    <path d="M12 0C5.373 0 0 5.373 0 12c0 2.115.549 4.1 1.504 5.831L0 24l6.335-1.484A11.935 11.935 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.003-1.369l-.36-.213-3.719.871.886-3.636-.234-.373A9.818 9.818 0 1112 21.818z"/>
+                  </svg>
+                  Conectar por WhatsApp
+                </a>
+              );
+            })()}
+            {/* Si es propietario, enlace discreto a editar */}
+            {isOwner && (
+              <Link href="/dashboard/perfil"
+                className="flex items-center gap-1.5 rounded-xl border border-outline-variant px-4 py-2.5 text-xs font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
+                ✏️ Editar mi perfil
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -241,12 +274,27 @@ export default function PerfilPublicoPage() {
                 </dl>
               </Card>
 
-              {company.sitioWeb && (
+              {(company.sitioWeb || (company as Record<string,unknown>).telefono || (company as Record<string,unknown>).email) && (
                 <Card title="Contacto">
-                  <a href={company.sitioWeb} target="_blank" rel="noreferrer"
-                    className="flex items-center gap-2 text-sm text-primary hover:underline">
-                    🌐 {company.sitioWeb}
-                  </a>
+                  <div className="space-y-2">
+                    {company.sitioWeb && (
+                      <a href={company.sitioWeb} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-2 text-sm text-primary hover:underline break-all">
+                        🌐 {company.sitioWeb}
+                      </a>
+                    )}
+                    {(company as Record<string,unknown>).telefono && (
+                      <p className="flex items-center gap-2 text-sm text-on-surface-variant">
+                        📞 {String((company as Record<string,unknown>).telefono)}
+                      </p>
+                    )}
+                    {(company as Record<string,unknown>).email && (
+                      <a href={`mailto:${(company as Record<string,unknown>).email}`}
+                        className="flex items-center gap-2 text-sm text-primary hover:underline break-all">
+                        ✉️ {String((company as Record<string,unknown>).email)}
+                      </a>
+                    )}
+                  </div>
                 </Card>
               )}
             </div>
