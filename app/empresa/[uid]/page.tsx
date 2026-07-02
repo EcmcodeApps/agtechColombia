@@ -138,29 +138,38 @@ export default function PerfilPublicoPage() {
                 🌐 Web
               </a>
             )}
-            {/* Botón WhatsApp — usa teléfono de la empresa */}
+            {/* Botón WhatsApp — busca en contacto.whatsapp, contacto.celular, step2, telefono */}
             {(() => {
-              const raw = (company as Record<string,unknown>).whatsapp as string
-                       || (company as Record<string,unknown>).telefono as string
+              const raw = company.contacto?.whatsapp
+                       || company.contacto?.celular
+                       || company.step2?.whatsapp
+                       || company.step2?.celular
+                       || company.telefono
                        || "";
               const digits = raw.replace(/\D/g, "");
               const phone  = digits.startsWith("57") ? digits : digits ? `57${digits}` : "";
               const nombre = company.nombreComercial ?? company.nombre ?? "empresa";
               const msg    = encodeURIComponent(`Hola ${nombre}, vi tu perfil en AgTech Colombia y me interesa conectar.`);
+              const correo = company.contacto?.correo || company.step2?.correo || "";
+
+              if (!phone && !correo) return (
+                <span className="flex items-center gap-2 rounded-xl border border-outline-variant px-5 py-2.5 text-sm font-medium text-on-surface-variant">
+                  Sin contacto registrado
+                </span>
+              );
               if (!phone) return (
-                <a href={`mailto:${(company as Record<string,unknown>).email ?? ""}`}
+                <a href={`mailto:${correo}?subject=Contacto desde AgTech Colombia&body=Hola ${nombre}, vi tu perfil en AgTech Colombia y me interesa conectar.`}
                   className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-green-700 transition-colors">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
                     <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
                   </svg>
-                  Contactar
+                  Enviar correo
                 </a>
               );
               return (
                 <a href={`https://wa.me/${phone}?text=${msg}`} target="_blank" rel="noreferrer"
                   className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-green-700 transition-colors shadow-md">
-                  {/* WhatsApp icon */}
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
                     <path d="M12 0C5.373 0 0 5.373 0 12c0 2.115.549 4.1 1.504 5.831L0 24l6.335-1.484A11.935 11.935 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.003-1.369l-.36-.213-3.719.871.886-3.636-.234-.373A9.818 9.818 0 1112 21.818z"/>
@@ -274,29 +283,47 @@ export default function PerfilPublicoPage() {
                 </dl>
               </Card>
 
-              {(company.sitioWeb || (company as Record<string,unknown>).telefono || (company as Record<string,unknown>).email) && (
-                <Card title="Contacto">
-                  <div className="space-y-2">
-                    {company.sitioWeb && (
-                      <a href={company.sitioWeb} target="_blank" rel="noreferrer"
-                        className="flex items-center gap-2 text-sm text-primary hover:underline break-all">
-                        🌐 {company.sitioWeb}
-                      </a>
-                    )}
-                    {(company as Record<string,unknown>).telefono && (
-                      <p className="flex items-center gap-2 text-sm text-on-surface-variant">
-                        📞 {String((company as Record<string,unknown>).telefono)}
-                      </p>
-                    )}
-                    {(company as Record<string,unknown>).email && (
-                      <a href={`mailto:${(company as Record<string,unknown>).email}`}
-                        className="flex items-center gap-2 text-sm text-primary hover:underline break-all">
-                        ✉️ {String((company as Record<string,unknown>).email)}
-                      </a>
-                    )}
-                  </div>
-                </Card>
-              )}
+              {(() => {
+                const wa     = company.contacto?.whatsapp || company.step2?.whatsapp || "";
+                const cel    = company.contacto?.celular  || company.step2?.celular  || company.telefono || "";
+                const correo = company.contacto?.correo   || company.step2?.correo   || "";
+                const web    = company.sitioWeb || "";
+                if (!web && !wa && !cel && !correo) return null;
+                return (
+                  <Card title="Contacto">
+                    <div className="space-y-2">
+                      {web && (
+                        <a href={web} target="_blank" rel="noreferrer"
+                          className="flex items-center gap-2 text-sm text-primary hover:underline break-all">
+                          🌐 {web}
+                        </a>
+                      )}
+                      {(wa || cel) && (() => {
+                        const num = (wa || cel).replace(/\D/g, "");
+                        const phone = num.startsWith("57") ? num : `57${num}`;
+                        const nombre = company.nombreComercial ?? company.nombre ?? "empresa";
+                        const msg = encodeURIComponent(`Hola ${nombre}, vi tu perfil en AgTech Colombia.`);
+                        return (
+                          <a href={`https://wa.me/${phone}?text=${msg}`} target="_blank" rel="noreferrer"
+                            className="flex items-center gap-2 text-sm text-green-700 hover:underline font-medium">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                              <path d="M12 0C5.373 0 0 5.373 0 12c0 2.115.549 4.1 1.504 5.831L0 24l6.335-1.484A11.935 11.935 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.003-1.369l-.36-.213-3.719.871.886-3.636-.234-.373A9.818 9.818 0 1112 21.818z"/>
+                            </svg>
+                            {wa || cel}
+                          </a>
+                        );
+                      })()}
+                      {correo && (
+                        <a href={`mailto:${correo}`}
+                          className="flex items-center gap-2 text-sm text-primary hover:underline break-all">
+                          ✉️ {correo}
+                        </a>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })()}
             </div>
           </div>
         )}
