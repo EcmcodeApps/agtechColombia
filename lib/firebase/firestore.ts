@@ -76,9 +76,10 @@ export async function getAllCompanies(): Promise<CompanyRecord[]> {
   return s.docs.map(d => ({ uid: d.id, ...d.data() }) as CompanyRecord);
 }
 export async function getActiveCompanies(): Promise<CompanyRecord[]> {
-  const s = await getDocs(collection(db,'companies'));
-  return s.docs.map(d => ({ uid: d.id, ...d.data() }) as CompanyRecord)
-    .filter(c => c.activa === true || c.status === 'active');
+  // Usa where('activa','==',true) para que la regla pública de Firestore aplique
+  // a usuarios no autenticados (sin filtro, la query falla para no-auth)
+  const s = await getDocs(query(collection(db,'companies'), where('activa','==',true)));
+  return s.docs.map(d => ({ uid: d.id, ...d.data() }) as CompanyRecord);
 }
 export async function incrementarVisitas(uid: string) {
   try {

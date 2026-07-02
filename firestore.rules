@@ -18,9 +18,10 @@ service cloud.firestore {
     }
 
     match /companies/{uid} {
-      // Perfil activo es público (lectura sin autenticación)
+      // Empresas activas son públicas (sin autenticación) — permite queries con where('activa',==,true)
       allow read:   if isOwner(uid) || isAdmin()
-                    || (resource != null && (resource.data.activa == true || resource.data.status == "active"));
+                    || resource.data.activa == true
+                    || resource.data.status == "active";
       allow create: if isOwner(uid);
       allow update: if isOwner(uid) || isAdmin();
       allow delete: if false;
