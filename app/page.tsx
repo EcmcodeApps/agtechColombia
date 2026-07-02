@@ -330,32 +330,74 @@ function CategoriesSection({ cats }: { cats: CategoriaRecord[] }) {
   );
 }
 
-/* ── Carrusel automático de empresas ─────────────────────────────────────── */
+/* ── Tarjeta de empresa (usada en grilla y carrusel) ─────────────────────── */
+function EmpresaCard({ c, i }: { c: CompanyRecord; i: number }) {
+  const nombre  = cNombre(c);
+  const logo    = cLogo(c);
+  const portada = cPortada(c);
+  const dept    = cDept(c);
+  const pitch   = cPitch(c);
+  return (
+    <Link key={`${c.uid}-${i}`} href={`/empresa/${c.uid}`}
+      className="group flex-shrink-0 w-44 sm:w-52">
+      <div className="aspect-square rounded-2xl border border-outline-variant/40
+                      bg-[oklch(0.97_0.008_160)] shadow-sm
+                      group-hover:shadow-lg group-hover:-translate-y-1
+                      transition-all duration-300 overflow-hidden relative flex
+                      flex-col items-center justify-center p-3 gap-2">
+        {portada && (
+          <img src={portada} alt=""
+            className="absolute inset-0 w-full h-full object-cover opacity-10
+                       group-hover:opacity-20 transition-opacity duration-300" />
+        )}
+        <div className="relative z-10 w-20 h-20 sm:w-24 sm:h-24 rounded-2xl
+                        bg-white border border-outline-variant/30 shadow-md
+                        overflow-hidden flex items-center justify-center flex-shrink-0">
+          {logo
+            ? <img src={logo} alt={nombre} className="w-full h-full object-contain p-2" />
+            : <Initials name={nombre} size={80} />
+          }
+        </div>
+        <div className="relative z-10 text-center px-1">
+          <p className="font-bold text-xs sm:text-sm text-on-surface leading-tight
+                        line-clamp-2 group-hover:text-primary transition-colors">{nombre}</p>
+          {dept && <p className="text-[10px] text-on-surface-variant mt-0.5 truncate">📍 {dept}</p>}
+          {pitch && <p className="text-[10px] text-on-surface-variant mt-1 line-clamp-2 leading-snug hidden sm:block">{pitch}</p>}
+        </div>
+        <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm z-10" title="Activa" />
+      </div>
+    </Link>
+  );
+}
+
+/* ── Sección de empresas: grilla fija (<5) o carrusel (≥5) ──────────────── */
 function CompaniesSection({ companies }: { companies: CompanyRecord[] }) {
   const featured = companies.filter(c => c.activa);
   if (!featured.length) return null;
 
-  /* Rellenamos hasta tener al menos 8 tarjetas por vuelta, luego duplicamos para el loop */
-  const MIN_PER_SET = 8;
-  const repeatsPerSet = Math.ceil(MIN_PER_SET / featured.length);
-  const set = Array.from({ length: repeatsPerSet }, () => featured).flat();
-  const items = [...set, ...set]; // 2 copias del set → animación mueve 50%
+  const CAROUSEL_THRESHOLD = 5;
+  const isCarousel = featured.length >= CAROUSEL_THRESHOLD;
+
+  /* Carrusel: duplicar para loop infinito sin saltos */
+  const carouselItems = isCarousel
+    ? [...featured, ...featured]
+    : [];
 
   return (
     <section className="py-12 md:py-16 bg-white overflow-hidden">
-      <style>{`
-        @keyframes slide-left {
-          0%   { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .carousel-track {
-          animation: slide-left 18s linear infinite;
-          will-change: transform;
-        }
-        .carousel-track:hover {
-          animation-play-state: paused;
-        }
-      `}</style>
+      {isCarousel && (
+        <style>{`
+          @keyframes slide-left {
+            0%   { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+          }
+          .carousel-track {
+            animation: slide-left 20s linear infinite;
+            will-change: transform;
+          }
+          .carousel-track:hover { animation-play-state: paused; }
+        `}</style>
+      )}
 
       {/* Encabezado */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-8">
@@ -375,75 +417,26 @@ function CompaniesSection({ companies }: { companies: CompanyRecord[] }) {
         </div>
       </div>
 
-      {/* Carrusel — desborda sin scroll visible */}
-      <div className="overflow-hidden select-none">
-        <div className="carousel-track flex gap-4 w-max px-4">
-          {items.map((c, i) => {
-            const nombre  = cNombre(c);
-            const logo    = cLogo(c);
-            const portada = cPortada(c);
-            const dept    = cDept(c);
-            const pitch   = cPitch(c);
-
-            return (
-              <Link
-                key={`${c.uid}-${i}`}
-                href={`/empresa/${c.uid}`}
-                className="group flex-shrink-0 w-44 sm:w-52"
-              >
-                {/* Tarjeta cuadrada */}
-                <div className="aspect-square rounded-2xl border border-outline-variant/40
-                                bg-[oklch(0.97_0.008_160)] shadow-sm
-                                group-hover:shadow-lg group-hover:-translate-y-1
-                                transition-all duration-300 overflow-hidden relative flex
-                                flex-col items-center justify-center p-3 gap-2">
-
-                  {/* Portada como fondo muy suave */}
-                  {portada && (
-                    <img src={portada} alt=""
-                      className="absolute inset-0 w-full h-full object-cover opacity-10
-                                 group-hover:opacity-20 transition-opacity duration-300" />
-                  )}
-
-                  {/* Logo completo centrado */}
-                  <div className="relative z-10 w-20 h-20 sm:w-24 sm:h-24 rounded-2xl
-                                  bg-white border border-outline-variant/30 shadow-md
-                                  overflow-hidden flex items-center justify-center flex-shrink-0">
-                    {logo
-                      ? <img src={logo} alt={nombre}
-                             className="w-full h-full object-contain p-2" />
-                      : <Initials name={nombre} size={80} />
-                    }
-                  </div>
-
-                  {/* Nombre + ubicación */}
-                  <div className="relative z-10 text-center px-1">
-                    <p className="font-bold text-xs sm:text-sm text-on-surface leading-tight
-                                  line-clamp-2 group-hover:text-primary transition-colors">
-                      {nombre}
-                    </p>
-                    {dept && (
-                      <p className="text-[10px] text-on-surface-variant mt-0.5 truncate">
-                        📍 {dept}
-                      </p>
-                    )}
-                    {pitch && (
-                      <p className="text-[10px] text-on-surface-variant mt-1 line-clamp-2 leading-snug
-                                    hidden sm:block">
-                        {pitch}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Indicador verificada */}
-                  <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full
-                                   bg-green-500 shadow-sm z-10" title="Activa" />
-                </div>
-              </Link>
-            );
-          })}
+      {isCarousel ? (
+        /* ── Carrusel automático (≥5 empresas) ── */
+        <div className="overflow-hidden select-none">
+          <div className="carousel-track flex gap-4 w-max px-4">
+            {carouselItems.map((c, i) => <EmpresaCard key={`${c.uid}-${i}`} c={c} i={i} />)}
+          </div>
         </div>
-      </div>
+      ) : (
+        /* ── Grilla estática (<5 empresas) ── */
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-wrap gap-4 justify-center sm:justify-start">
+            {featured.map((c, i) => <EmpresaCard key={c.uid} c={c} i={i} />)}
+          </div>
+          {featured.length < CAROUSEL_THRESHOLD && (
+            <p className="text-xs text-on-surface-variant mt-6 text-center">
+              El carrusel se activa automáticamente cuando haya {CAROUSEL_THRESHOLD} o más empresas registradas.
+            </p>
+          )}
+        </div>
+      )}
     </section>
   );
 }
