@@ -9,9 +9,9 @@ import {
   type CompanyRecord, type CategoriaRecord,
 } from "@/lib/firebase/firestore";
 
-/* ── helpers to normalize flat/step-based company data ──────────────────── */
-const cNombre  = (c: CompanyRecord) => c.nombreComercial  || c.step1?.nombreComercial  || c.nombre         || "Sin nombre";
-const cPitch   = (c: CompanyRecord) => c.pitchCorto       || c.step3?.pitchCorto       || c.descripcion    || "";
+/* ── helpers para normalizar datos flat/step-based ───────────────────────── */
+const cNombre  = (c: CompanyRecord) => c.nombreComercial  || c.step1?.nombreComercial  || c.nombre      || "Sin nombre";
+const cPitch   = (c: CompanyRecord) => c.pitchCorto       || c.step3?.pitchCorto       || c.descripcion || "";
 const cCats    = (c: CompanyRecord) => c.categorias       || c.step1?.categorias       || [];
 const cDept    = (c: CompanyRecord) => c.departamento     || c.step1?.departamento     || "";
 const cCiudad  = (c: CompanyRecord) => c.ciudad           || c.step1?.ciudad           || "";
@@ -19,7 +19,7 @@ const cLogo    = (c: CompanyRecord) => c.logoUrl          || c.step1?.logoUrl   
 const cPortada = (c: CompanyRecord) => c.portadaUrl       || c.step1?.portadaUrl       || "";
 const cSize    = (c: CompanyRecord) => c.tamano           || c.step1?.tamano           || "";
 
-/* ── Colombian departments ───────────────────────────────────────────────── */
+/* ── Departamentos colombianos ───────────────────────────────────────────── */
 const DEPARTAMENTOS = [
   "Antioquia","Atlántico","Bogotá D.C.","Bolívar","Boyacá","Caldas","Caquetá",
   "Cauca","Cesar","Chocó","Córdoba","Cundinamarca","Guajira","Huila","Magdalena",
@@ -33,20 +33,20 @@ type SortMode = "recent" | "visits" | "alpha";
 
 const PAGE_SIZE = 8;
 
-/* ── Avatar initials ─────────────────────────────────────────────────────── */
+/* ── Iniciales de avatar ─────────────────────────────────────────────────── */
 function Initials({ name, size = 32, className = "" }: { name: string; size?: number; className?: string }) {
-  const init = name.split(" ").slice(0,2).map(w=>w[0]).join("").toUpperCase();
+  const init = name.split(" ").slice(0,2).map(w => w[0]).join("").toUpperCase();
   const COLORS = ["#22c55e","#3b82f6","#f59e0b","#ec4899","#8b5cf6","#14b8a6","#ef4444"];
   const bg = COLORS[name.charCodeAt(0) % COLORS.length];
   return (
     <div className={`rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ${className}`}
-         style={{ width:size, height:size, background:bg, fontSize:size*0.38 }}>
+         style={{ width: size, height: size, background: bg, fontSize: size * 0.38 }}>
       {init}
     </div>
   );
 }
 
-/* ── Star rating ─────────────────────────────────────────────────────────── */
+/* ── Estrellas ───────────────────────────────────────────────────────────── */
 function Stars({ val }: { val: number }) {
   return (
     <div className="flex items-center gap-0.5">
@@ -58,19 +58,32 @@ function Stars({ val }: { val: number }) {
   );
 }
 
-/* ── Company Card ────────────────────────────────────────────────────────── */
-function CompanyCard({ company, view }: { company: CompanyRecord; view: "grid"|"list" }) {
-  const nombre  = cNombre(company);
-  const pitch   = cPitch(company);
-  const logo    = cLogo(company);
-  const portada = cPortada(company);
-  const dept    = cDept(company);
-  const cats    = cCats(company);
-  const isDestacada = (company.plan === "empresa" || company.plan === "profesional");
+/* ── Tarjeta de empresa ──────────────────────────────────────────────────── */
+function CompanyCard({
+  company, view, catsMap,
+}: {
+  company: CompanyRecord;
+  view: "grid" | "list";
+  catsMap: Record<string, CategoriaRecord>;
+}) {
+  const nombre     = cNombre(company);
+  const pitch      = cPitch(company);
+  const logo       = cLogo(company);
+  const portada    = cPortada(company);
+  const dept       = cDept(company);
+  const catIds     = cCats(company) as string[];
+  const isDestacada = company.plan === "empresa" || company.plan === "profesional";
 
+  /* Convierte IDs/slugs a nombre legible */
+  function resolverCat(catId: string): string {
+    if (catsMap[catId]) return catsMap[catId].nombre;
+    const byNombre = Object.values(catsMap).find(c => c.nombre === catId || c.slug === catId);
+    return byNombre?.nombre ?? catId;
+  }
+
+  /* ── Vista lista ── */
   if (view === "list") return (
     <div className="bg-white rounded-2xl border border-outline-variant/40 shadow-sm p-4 flex gap-4 items-start hover:shadow-md transition-shadow group">
-      {/* Logo */}
       <div className="flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden bg-surface-container-high border border-outline-variant/30">
         {logo
           ? <img src={logo} alt={nombre} className="w-full h-full object-contain p-1" />
@@ -78,7 +91,6 @@ function CompanyCard({ company, view }: { company: CompanyRecord; view: "grid"|"
         }
       </div>
 
-      {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
@@ -98,22 +110,26 @@ function CompanyCard({ company, view }: { company: CompanyRecord; view: "grid"|"
         </div>
         <p className="text-xs text-on-surface-variant mt-1 line-clamp-2 leading-relaxed">{pitch}</p>
         <div className="flex flex-wrap gap-1.5 mt-2">
-          {cats.slice(0,3).map(cat => (
-            <span key={cat} className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary-container text-on-primary-container">{cat}</span>
+          {catIds.slice(0, 3).map(catId => (
+            <span key={catId} className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary-container text-on-primary-container">
+              {resolverCat(catId)}
+            </span>
           ))}
           {dept && (
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant">{dept}</span>
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant">
+              📍 {dept}
+            </span>
           )}
         </div>
       </div>
     </div>
   );
 
-  /* ── Grid card ── */
+  /* ── Vista grilla (cuadrada) ── */
   return (
-    <div className="bg-white rounded-2xl border border-outline-variant/40 shadow-sm overflow-hidden hover:shadow-md transition-shadow group flex flex-col">
+    <div className="bg-white rounded-2xl border border-outline-variant/40 shadow-sm overflow-hidden hover:shadow-md transition-shadow group flex flex-col aspect-square">
       {/* Portada */}
-      <div className="relative h-28 bg-surface-container-high overflow-hidden">
+      <div className="relative h-[45%] bg-surface-container-high overflow-hidden flex-shrink-0">
         {portada
           ? <img src={portada} alt="" className="w-full h-full object-cover" />
           : <div className="w-full h-full bg-gradient-to-br from-primary-container to-surface-container" />
@@ -121,32 +137,38 @@ function CompanyCard({ company, view }: { company: CompanyRecord; view: "grid"|"
         {isDestacada && (
           <span className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400 text-amber-900">DESTACADA</span>
         )}
-        {/* Floating logo */}
-        <div className="absolute -bottom-5 left-3 w-12 h-12 rounded-xl overflow-hidden bg-white border-2 border-white shadow-md">
+        {/* Logo flotante */}
+        <div className="absolute -bottom-4 left-3 w-10 h-10 rounded-xl overflow-hidden bg-white border-2 border-white shadow-md">
           {logo
             ? <img src={logo} alt={nombre} className="w-full h-full object-contain p-0.5" />
-            : <Initials name={nombre} size={48} className="w-full h-full rounded-xl" />
+            : <Initials name={nombre} size={40} className="w-full h-full rounded-xl" />
           }
         </div>
       </div>
 
-      <div className="pt-7 px-3 pb-3 flex flex-col gap-2 flex-1">
+      <div className="pt-6 px-3 pb-3 flex flex-col gap-1.5 flex-1 min-h-0">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="font-bold text-sm text-on-surface leading-tight">{nombre}</span>
+          <span className="font-bold text-sm text-on-surface leading-tight truncate">{nombre}</span>
           <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" title="Verificada" />
         </div>
-        <p className="text-xs text-on-surface-variant line-clamp-2 leading-relaxed">{pitch}</p>
-        <div className="flex flex-wrap gap-1 mt-auto">
-          {cats.slice(0,2).map(cat => (
-            <span key={cat} className="text-[10px] px-2 py-0.5 rounded-full bg-primary-container text-on-primary-container font-medium">{cat}</span>
+        <p className="text-[11px] text-on-surface-variant line-clamp-2 leading-relaxed flex-1">{pitch}</p>
+        <div className="flex flex-wrap gap-1">
+          {catIds.slice(0, 2).map(catId => (
+            <span key={catId} className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary-container text-on-primary-container font-medium truncate max-w-[120px]">
+              {resolverCat(catId)}
+            </span>
           ))}
-          {dept && <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-medium">{dept}</span>}
+          {dept && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-medium">
+              📍 {dept}
+            </span>
+          )}
         </div>
         <div className="flex items-center justify-between pt-1 border-t border-outline-variant/30">
           {company.calificacion ? <Stars val={company.calificacion} /> : <span />}
           <Link href={`/empresa/${company.uid}`}
             className="text-xs font-semibold text-primary hover:underline group-hover:text-primary/80">
-            View Profile ›
+            Ver perfil ›
           </Link>
         </div>
       </div>
@@ -154,8 +176,8 @@ function CompanyCard({ company, view }: { company: CompanyRecord; view: "grid"|"
   );
 }
 
-/* ── Sidebar Filters ─────────────────────────────────────────────────────── */
-function SidebarFilters({
+/* ── Panel de filtros ────────────────────────────────────────────────────── */
+function PanelFiltros({
   depts, setDepts, size, setSize, verified, setVerified, onApply, onClear,
 }: {
   depts: string[]; setDepts: (d: string[]) => void;
@@ -164,18 +186,19 @@ function SidebarFilters({
   onApply: () => void; onClear: () => void;
 }) {
   function toggleDept(d: string) {
-    setDepts(depts.includes(d) ? depts.filter(x=>x!==d) : [...depts, d]);
+    setDepts(depts.includes(d) ? depts.filter(x => x !== d) : [...depts, d]);
   }
-  const topDepts = ["Antioquia","Cundinamarca","Valle del Cauca","Santander","Boyacá"];
+  const topDepts = ["Antioquia", "Cundinamarca", "Valle del Cauca", "Santander", "Boyacá"];
+
   return (
     <aside className="flex flex-col gap-5">
       <div>
         <p className="text-[10px] font-bold tracking-widest text-on-surface-variant uppercase mb-3">
-          Refine by Colombian Region
+          Filtrar por región
         </p>
 
         <div className="mb-4">
-          <p className="text-xs font-bold text-on-surface mb-2">Departments</p>
+          <p className="text-xs font-bold text-on-surface mb-2">Departamento</p>
           <div className="flex flex-col gap-1.5">
             {topDepts.map(d => (
               <label key={d} className="flex items-center gap-2 cursor-pointer">
@@ -188,18 +211,18 @@ function SidebarFilters({
         </div>
 
         <div className="mb-4">
-          <p className="text-xs font-bold text-on-surface mb-2">Size</p>
+          <p className="text-xs font-bold text-on-surface mb-2">Tamaño</p>
           <select value={size} onChange={e => setSize(e.target.value)}
             className="w-full bg-surface-container rounded-xl px-3 py-2 text-xs text-on-surface outline-none border border-outline-variant focus:ring-2 focus:ring-primary/30">
-            <option value="">All Sizes</option>
+            <option value="">Todos los tamaños</option>
             {SIZES.map(s => <option key={s} value={s}>{s} empleados</option>)}
           </select>
         </div>
 
         <div className="mb-4">
-          <p className="text-xs font-bold text-on-surface mb-2">Verified status</p>
+          <p className="text-xs font-bold text-on-surface mb-2">Estado de verificación</p>
           <label className="flex items-center justify-between cursor-pointer">
-            <span className="text-xs text-on-surface">Verified only</span>
+            <span className="text-xs text-on-surface">Solo verificadas</span>
             <button onClick={() => setVerified(!verified)} role="switch" aria-checked={verified}
               className={`relative w-10 h-5 rounded-full transition-colors ${verified ? "bg-primary" : "bg-outline-variant"}`}>
               <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${verified ? "left-5" : "left-0.5"}`} />
@@ -209,8 +232,8 @@ function SidebarFilters({
       </div>
 
       <button onClick={onApply}
-        className="w-full bg-primary text-on-primary font-semibold text-sm rounded-2xl py-2.5 hover:bg-[oklch(0.38_0.14_145)] transition-colors">
-        Apply Filters
+        className="w-full bg-primary text-on-primary font-semibold text-sm rounded-2xl py-2.5 hover:opacity-90 transition-opacity">
+        Aplicar filtros
       </button>
       <button onClick={onClear} className="text-xs text-on-surface-variant hover:text-primary text-center underline">
         Limpiar filtros
@@ -218,36 +241,33 @@ function SidebarFilters({
 
       <div className="border-t border-outline-variant pt-4 flex flex-col gap-2">
         <Link href="/dashboard/ajustes" className="flex items-center gap-2 text-xs text-on-surface-variant hover:text-on-surface">
-          ⚙️ Settings
+          ⚙️ Ajustes
         </Link>
         <Link href="/foro" className="flex items-center gap-2 text-xs text-on-surface-variant hover:text-on-surface">
-          ❓ Help Center
+          ❓ Centro de ayuda
         </Link>
       </div>
     </aside>
   );
 }
 
-/* ── Main page ───────────────────────────────────────────────────────────── */
+/* ── Página principal ────────────────────────────────────────────────────── */
 export default function DirectorioPage() {
-  const router      = useRouter();
-  const [user, setUser]             = useState<User|null>(null);
-  const [companies, setCompanies]   = useState<CompanyRecord[]>([]);
-  const [cats, setCats]             = useState<CategoriaRecord[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [view, setView]             = useState<"grid"|"list">("grid");
-  const [sort, setSort]             = useState<SortMode>("recent");
-  const [search, setSearch]         = useState("");
+  const [user, setUser]               = useState<User | null>(null);
+  const [companies, setCompanies]     = useState<CompanyRecord[]>([]);
+  const [cats, setCats]               = useState<CategoriaRecord[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [view, setView]               = useState<"grid" | "list">("grid");
+  const [sort, setSort]               = useState<SortMode>("recent");
+  const [search, setSearch]           = useState("");
   const [selectedCat, setSelectedCat] = useState<string>("");
-  const [page, setPage]             = useState(1);
-  // filter state (staged until Apply is clicked)
-  const [stagedDepts, setStagedDepts]     = useState<string[]>([]);
-  const [stagedSize, setStagedSize]       = useState("");
+  const [page, setPage]               = useState(1);
+  const [stagedDepts, setStagedDepts] = useState<string[]>([]);
+  const [stagedSize, setStagedSize]   = useState("");
   const [stagedVerified, setStagedVerified] = useState(false);
-  // applied filters
-  const [depts, setDepts]       = useState<string[]>([]);
-  const [size, setSize]         = useState("");
-  const [verified, setVerified] = useState(false);
+  const [depts, setDepts]             = useState<string[]>([]);
+  const [size, setSize]               = useState("");
+  const [verified, setVerified]       = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -263,38 +283,45 @@ export default function DirectorioPage() {
     });
   }, []);
 
-  const activeCat = useMemo(() => cats.find(c => c.slug === selectedCat || c.nombre === selectedCat), [cats, selectedCat]);
+  /* Mapa de ID → CategoriaRecord para resolver nombres */
+  const catsMap = useMemo(() => {
+    const map: Record<string, CategoriaRecord> = {};
+    cats.forEach(c => { if (c.id) map[c.id] = c; });
+    return map;
+  }, [cats]);
+
+  const activeCat = useMemo(() =>
+    cats.find(c => c.slug === selectedCat || c.nombre === selectedCat || c.id === selectedCat),
+    [cats, selectedCat]);
 
   const filtered = useMemo(() => {
     let res = [...companies];
-    // Category filter
     if (selectedCat) {
       res = res.filter(c => {
-        const cc = cCats(c);
-        return cc.some(cat => cat === selectedCat || cat === activeCat?.nombre || cat === activeCat?.slug);
+        const cc = cCats(c) as string[];
+        return cc.some(cat =>
+          cat === selectedCat ||
+          cat === activeCat?.nombre ||
+          cat === activeCat?.slug ||
+          cat === activeCat?.id
+        );
       });
     }
-    // Search
     if (search.trim()) {
       const q = search.toLowerCase();
       res = res.filter(c => cNombre(c).toLowerCase().includes(q) || cPitch(c).toLowerCase().includes(q));
     }
-    // Department filter
     if (depts.length > 0) res = res.filter(c => depts.includes(cDept(c)));
-    // Size filter
     if (size) res = res.filter(c => cSize(c) === size);
-    // Verified filter
     if (verified) res = res.filter(c => c.activa);
-    // Sort
-    if (sort === "alpha") res.sort((a,b) => cNombre(a).localeCompare(cNombre(b)));
-    else if (sort === "visits") res.sort((a,b) => (b.visitas??0)-(a.visitas??0));
-    else res.sort((a,b) => {
-      const ta = (a.createdAt as {seconds?:number})?.seconds ?? 0;
-      const tb = (b.createdAt as {seconds?:number})?.seconds ?? 0;
+    if (sort === "alpha") res.sort((a, b) => cNombre(a).localeCompare(cNombre(b)));
+    else if (sort === "visits") res.sort((a, b) => ((b.visitas ?? 0) - (a.visitas ?? 0)));
+    else res.sort((a, b) => {
+      const ta = (a.createdAt as { seconds?: number })?.seconds ?? 0;
+      const tb = (b.createdAt as { seconds?: number })?.seconds ?? 0;
       return tb - ta;
     });
-    // Destacadas primero
-    res.sort((a,b) => {
+    res.sort((a, b) => {
       const aD = a.plan === "empresa" || a.plan === "profesional" ? 1 : 0;
       const bD = b.plan === "empresa" || b.plan === "profesional" ? 1 : 0;
       return bD - aD;
@@ -303,39 +330,33 @@ export default function DirectorioPage() {
   }, [companies, selectedCat, search, depts, size, verified, sort, activeCat]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated  = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  function handleCatSelect(slug: string) {
-    setSelectedCat(slug);
-    setPage(1);
-  }
+  function handleCatSelect(slug: string) { setSelectedCat(slug); setPage(1); }
 
   function applyFilters() {
-    setDepts(stagedDepts);
-    setSize(stagedSize);
-    setVerified(stagedVerified);
-    setPage(1);
-    setSidebarOpen(false);
+    setDepts(stagedDepts); setSize(stagedSize); setVerified(stagedVerified);
+    setPage(1); setSidebarOpen(false);
   }
 
   function clearFilters() {
     setStagedDepts([]); setStagedSize(""); setStagedVerified(false);
-    setDepts([]); setSize(""); setVerified(false);
-    setPage(1);
+    setDepts([]); setSize(""); setVerified(false); setPage(1);
   }
 
-  /* ── Pagination numbers ── */
   function pageNums() {
-    if (totalPages <= 7) return Array.from({length:totalPages},(_,i)=>i+1);
-    if (page <= 4) return [1,2,3,4,5,'…',totalPages];
-    if (page >= totalPages-3) return [1,'…',totalPages-4,totalPages-3,totalPages-2,totalPages-1,totalPages];
-    return [1,'…',page-1,page,page+1,'…',totalPages];
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (page <= 4) return [1, 2, 3, 4, 5, "…", totalPages];
+    if (page >= totalPages - 3) return [1, "…", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    return [1, "…", page - 1, page, page + 1, "…", totalPages];
   }
+
+  const activeFiltersCount = depts.length + (size ? 1 : 0) + (verified ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-[oklch(0.97_0.01_145)] flex flex-col">
 
-      {/* ── Top navigation ── */}
+      {/* ── Barra superior ── */}
       <header className="sticky top-0 z-40 bg-white border-b border-outline-variant shadow-sm">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           <Link href="/" className="text-lg font-bold text-primary font-headline whitespace-nowrap">
@@ -343,10 +364,10 @@ export default function DirectorioPage() {
           </Link>
           <nav className="hidden md:flex items-center gap-6">
             {[
-              { href:"/directorio", label:"Directorio" },
-              { href:"/catalogos/productos", label:"Marketplace" },
-              { href:"/foro", label:"AgForo" },
-              { href:"/dashboard", label:"Dashboard" },
+              { href: "/directorio",         label: "Directorio" },
+              { href: "/catalogos/productos", label: "Marketplace" },
+              { href: "/foro",               label: "AgForo" },
+              { href: "/dashboard",          label: "Dashboard" },
             ].map(l => (
               <Link key={l.href} href={l.href}
                 className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors">
@@ -355,16 +376,15 @@ export default function DirectorioPage() {
             ))}
           </nav>
           <div className="flex items-center gap-3">
-            <button className="text-on-surface-variant hover:text-on-surface text-xl">🔔</button>
             {user
               ? <Link href="/dashboard">
                   {user.photoURL
                     ? <img src={user.photoURL} className="w-8 h-8 rounded-full object-cover" alt="perfil" />
-                    : <Initials name={user.displayName||"U"} size={32} />
+                    : <Initials name={user.displayName || "U"} size={32} />
                   }
                 </Link>
               : <Link href="/auth/login"
-                  className="text-xs font-semibold bg-primary text-on-primary px-4 py-1.5 rounded-full hover:bg-[oklch(0.38_0.14_145)] transition-colors">
+                  className="text-xs font-semibold bg-primary text-on-primary px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity">
                   Ingresar
                 </Link>
             }
@@ -374,11 +394,11 @@ export default function DirectorioPage() {
 
       <div className="max-w-7xl mx-auto w-full px-4 py-6 flex gap-6">
 
-        {/* ── Sidebar (desktop) ── */}
+        {/* ── Sidebar filtros (escritorio) ── */}
         <div className="hidden lg:block w-52 flex-shrink-0">
           <div className="sticky top-20 bg-white rounded-2xl border border-outline-variant/40 shadow-sm p-5">
-            <h2 className="text-sm font-bold text-on-surface mb-1">Filters</h2>
-            <SidebarFilters
+            <h2 className="text-sm font-bold text-on-surface mb-3">Filtros</h2>
+            <PanelFiltros
               depts={stagedDepts} setDepts={setStagedDepts}
               size={stagedSize} setSize={setStagedSize}
               verified={stagedVerified} setVerified={setStagedVerified}
@@ -387,16 +407,16 @@ export default function DirectorioPage() {
           </div>
         </div>
 
-        {/* ── Mobile filter drawer ── */}
+        {/* ── Drawer móvil de filtros ── */}
         {sidebarOpen && (
           <div className="fixed inset-0 z-50 flex lg:hidden">
             <div className="absolute inset-0 bg-scrim/40" onClick={() => setSidebarOpen(false)} />
-            <div className="relative w-72 bg-white h-full overflow-y-auto p-5 shadow-xl ml-0">
+            <div className="relative w-72 bg-white h-full overflow-y-auto p-5 shadow-xl">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-bold text-on-surface">Filters</h2>
+                <h2 className="font-bold text-on-surface">Filtros</h2>
                 <button onClick={() => setSidebarOpen(false)} className="text-2xl leading-none text-on-surface-variant">×</button>
               </div>
-              <SidebarFilters
+              <PanelFiltros
                 depts={stagedDepts} setDepts={setStagedDepts}
                 size={stagedSize} setSize={setStagedSize}
                 verified={stagedVerified} setVerified={setStagedVerified}
@@ -406,7 +426,7 @@ export default function DirectorioPage() {
           </div>
         )}
 
-        {/* ── Main content ── */}
+        {/* ── Contenido principal ── */}
         <main className="flex-1 min-w-0 flex flex-col gap-4">
 
           {/* Breadcrumb */}
@@ -420,41 +440,43 @@ export default function DirectorioPage() {
             </>}
           </nav>
 
-          {/* Category header card */}
+          {/* Encabezado con título */}
           {activeCat ? (
             <div className="bg-white rounded-2xl border border-outline-variant/40 shadow-sm px-5 py-4 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
-                   style={{ background: activeCat.color+"20" }}>
+                   style={{ background: (activeCat.color ?? "#22c55e") + "20" }}>
                 {activeCat.icono}
               </div>
               <div>
                 <h1 className="text-lg font-bold text-on-surface">{activeCat.nombre}</h1>
                 <p className="text-xs text-on-surface-variant mt-0.5">
-                  {filtered.length} empresas • {activeCat.descripcion}
+                  {filtered.length} empresa{filtered.length !== 1 ? "s" : ""} • {activeCat.descripcion}
                 </p>
               </div>
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-outline-variant/40 shadow-sm px-5 py-4">
-              <h1 className="text-lg font-bold text-on-surface">Colombian AgTech Ecosystem</h1>
+              <h1 className="text-lg font-bold text-on-surface">Ecosistema AgTech Colombiano</h1>
               <p className="text-xs text-on-surface-variant mt-0.5">
-                {companies.length} empresas innovando la agricultura en Colombia
+                {companies.length} empresa{companies.length !== 1 ? "s" : ""} innovando la agricultura en Colombia
               </p>
             </div>
           )}
 
-          {/* Category tabs */}
+          {/* Pestañas de categoría — scroll horizontal */}
           <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
             <button onClick={() => handleCatSelect("")}
               className={`flex-shrink-0 text-xs font-semibold px-4 py-2 rounded-full transition-all border ${
-                !selectedCat ? "bg-primary text-on-primary border-primary shadow-sm" : "bg-white text-on-surface-variant border-outline-variant hover:border-primary hover:text-primary"
+                !selectedCat
+                  ? "bg-primary text-on-primary border-primary shadow-sm"
+                  : "bg-white text-on-surface-variant border-outline-variant hover:border-primary hover:text-primary"
               }`}>
               Todos
             </button>
             {cats.map(cat => (
-              <button key={cat.id} onClick={() => handleCatSelect(cat.slug)}
+              <button key={cat.id} onClick={() => handleCatSelect(cat.id ?? cat.slug ?? cat.nombre)}
                 className={`flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full transition-all border ${
-                  selectedCat === cat.slug || selectedCat === cat.nombre
+                  selectedCat === cat.slug || selectedCat === cat.nombre || selectedCat === cat.id
                     ? "bg-primary text-on-primary border-primary shadow-sm"
                     : "bg-white text-on-surface-variant border-outline-variant hover:border-primary hover:text-primary"
                 }`}>
@@ -463,47 +485,52 @@ export default function DirectorioPage() {
             ))}
           </div>
 
-          {/* Search + toggles */}
+          {/* Buscador + controles */}
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Mobile filter button */}
+            {/* Botón filtros móvil */}
             <button onClick={() => setSidebarOpen(true)}
               className="lg:hidden flex items-center gap-1.5 bg-white border border-outline-variant rounded-xl px-3 py-2 text-xs font-medium text-on-surface-variant hover:border-primary">
-              ⚙️ Filtros {(depts.length + (size ? 1 : 0) + (verified ? 1 : 0)) > 0 && <span className="bg-primary text-on-primary rounded-full w-4 h-4 text-[10px] flex items-center justify-center">{depts.length + (size ? 1 : 0) + (verified ? 1 : 0)}</span>}
+              ⚙️ Filtros
+              {activeFiltersCount > 0 && (
+                <span className="bg-primary text-on-primary rounded-full w-4 h-4 text-[10px] flex items-center justify-center">
+                  {activeFiltersCount}
+                </span>
+              )}
             </button>
 
             <div className="flex-1 relative min-w-[200px]">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">🔍</span>
               <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-                placeholder="Search companies..."
+                placeholder="Buscar empresas..."
                 className="w-full bg-white border border-outline-variant rounded-xl pl-9 pr-4 py-2 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
             </div>
 
-            {/* Grid/List toggle */}
+            {/* Toggle grilla/lista */}
             <div className="flex bg-white border border-outline-variant rounded-xl overflow-hidden">
               <button onClick={() => setView("grid")}
-                className={`px-3 py-2 text-sm transition-colors ${view==="grid" ? "bg-primary text-on-primary" : "text-on-surface-variant hover:bg-surface-container"}`}>
-                ⊞
-              </button>
+                className={`px-3 py-2 text-sm transition-colors ${view === "grid" ? "bg-primary text-on-primary" : "text-on-surface-variant hover:bg-surface-container"}`}
+                title="Vista cuadrícula">⊞</button>
               <button onClick={() => setView("list")}
-                className={`px-3 py-2 text-sm transition-colors ${view==="list" ? "bg-primary text-on-primary" : "text-on-surface-variant hover:bg-surface-container"}`}>
-                ☰
-              </button>
+                className={`px-3 py-2 text-sm transition-colors ${view === "list" ? "bg-primary text-on-primary" : "text-on-surface-variant hover:bg-surface-container"}`}
+                title="Vista lista">☰</button>
             </div>
 
-            {/* Sort */}
+            {/* Ordenar */}
             <select value={sort} onChange={e => setSort(e.target.value as SortMode)}
               className="bg-white border border-outline-variant rounded-xl px-3 py-2 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary/30">
-              <option value="recent">Sort by: Most Recent</option>
-              <option value="visits">Sort by: Most Visited</option>
-              <option value="alpha">Sort by: A–Z</option>
+              <option value="recent">Más recientes</option>
+              <option value="visits">Más visitadas</option>
+              <option value="alpha">A–Z</option>
             </select>
           </div>
 
-          {/* Company grid/list */}
+          {/* Grilla / lista de empresas */}
           {loading ? (
-            <div className={view==="grid" ? "grid grid-cols-1 sm:grid-cols-2 gap-4" : "flex flex-col gap-3"}>
-              {Array.from({length:6}).map((_,i) => (
-                <div key={i} className={`bg-white rounded-2xl animate-pulse border border-outline-variant/30 ${view==="grid" ? "h-52" : "h-20"}`} />
+            <div className={view === "grid"
+              ? "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4"
+              : "flex flex-col gap-3"}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className={`bg-white rounded-2xl animate-pulse border border-outline-variant/30 ${view === "grid" ? "aspect-square" : "h-20"}`} />
               ))}
             </div>
           ) : paginated.length === 0 ? (
@@ -513,25 +540,25 @@ export default function DirectorioPage() {
               <button onClick={clearFilters} className="text-sm text-primary hover:underline">Limpiar filtros</button>
             </div>
           ) : (
-            <div className={view==="grid"
-              ? "grid grid-cols-1 sm:grid-cols-2 gap-4"
+            <div className={view === "grid"
+              ? "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
               : "flex flex-col gap-3"
             }>
               {paginated.map(c => (
-                <CompanyCard key={c.uid} company={c} view={view} />
+                <CompanyCard key={c.uid} company={c} view={view} catsMap={catsMap} />
               ))}
             </div>
           )}
 
-          {/* Pagination */}
+          {/* Paginación */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-1 pt-2">
-              <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page===1}
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
                 className="w-8 h-8 flex items-center justify-center rounded-lg text-sm text-on-surface-variant hover:bg-white disabled:opacity-30 border border-transparent hover:border-outline-variant">
                 ‹
               </button>
               {pageNums().map((n, i) =>
-                n === '…'
+                n === "…"
                   ? <span key={`e${i}`} className="w-8 h-8 flex items-center justify-center text-sm text-on-surface-variant">…</span>
                   : <button key={n} onClick={() => setPage(n as number)}
                       className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
@@ -540,14 +567,14 @@ export default function DirectorioPage() {
                           : "text-on-surface-variant hover:bg-white border border-transparent hover:border-outline-variant"
                       }`}>{n}</button>
               )}
-              <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page===totalPages}
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
                 className="w-8 h-8 flex items-center justify-center rounded-lg text-sm text-on-surface-variant hover:bg-white disabled:opacity-30 border border-transparent hover:border-outline-variant">
                 ›
               </button>
             </div>
           )}
 
-          {/* CTA Banner */}
+          {/* Banner CTA */}
           <div className="rounded-2xl bg-primary text-on-primary p-6 flex items-center justify-between gap-4 flex-wrap mt-2">
             <div>
               <p className="font-bold text-base">¿No encuentras tu empresa?</p>
@@ -556,8 +583,8 @@ export default function DirectorioPage() {
               </p>
             </div>
             <Link href="/onboarding"
-              className="flex-shrink-0 bg-white text-primary font-semibold text-sm px-6 py-2.5 rounded-full hover:bg-on-primary/10 transition-colors">
-              Add your company
+              className="flex-shrink-0 bg-white text-primary font-semibold text-sm px-6 py-2.5 rounded-full hover:opacity-90 transition-opacity">
+              Registra tu empresa
             </Link>
           </div>
         </main>
