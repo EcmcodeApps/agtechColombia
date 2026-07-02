@@ -335,8 +335,11 @@ function CompaniesSection({ companies }: { companies: CompanyRecord[] }) {
   const featured = companies.filter(c => c.activa);
   if (!featured.length) return null;
 
-  /* Duplicamos para loop infinito sin saltos */
-  const items = [...featured, ...featured];
+  /* Rellenamos hasta tener al menos 8 tarjetas por vuelta, luego duplicamos para el loop */
+  const MIN_PER_SET = 8;
+  const repeatsPerSet = Math.ceil(MIN_PER_SET / featured.length);
+  const set = Array.from({ length: repeatsPerSet }, () => featured).flat();
+  const items = [...set, ...set]; // 2 copias del set → animación mueve 50%
 
   return (
     <section className="py-12 md:py-16 bg-white overflow-hidden">
