@@ -24,7 +24,7 @@ export default function AdminSidebar({ nav, mobileOpen, onClose }: Props) {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="px-5 py-5 border-b border-white/10">
-        <span className="text-base font-bold text-white font-headline">🌱 AgTech Admin</span>
+        <img src="/images/logo-agtech.png" alt="AgTech Colombia" className="h-7 w-auto brightness-0 invert" />
       </div>
 
       {/* Nav links */}

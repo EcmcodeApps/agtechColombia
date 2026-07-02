@@ -32,7 +32,7 @@ export default function DashboardSidebar() {
   return (
     <aside className="hidden md:flex flex-col w-64 min-h-screen bg-surface-container-low border-r border-outline-variant px-4 py-6 gap-1">
       <div className="mb-6 px-2">
-        <span className="text-lg font-bold text-primary font-headline">AgTech Colombia</span>
+        <img src="/images/logo-agtech.png" alt="AgTech Colombia" className="h-8 w-auto" />
       </div>
 
       {NAV.map(({ href, label, icon }) => {

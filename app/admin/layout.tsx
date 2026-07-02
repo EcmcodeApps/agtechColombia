@@ -51,9 +51,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <path d="M4 6h16M4 12h16M4 18h16"/>
               </svg>
             </button>
-            <span className="text-sm font-bold text-white font-headline flex-1 truncate">
-              🌱 AgTech Admin
-            </span>
+            <img src="/images/logo-agtech.png" alt="AgTech Colombia"
+              className="h-6 w-auto flex-1 brightness-0 invert object-left object-contain" />
           </header>
 
           {/* Banner modo junta */}

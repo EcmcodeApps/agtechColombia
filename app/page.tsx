@@ -48,9 +48,9 @@ function Nav({ user }: { user: User|null }) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 md:h-16 flex items-center justify-between gap-3">
         {/* Logo */}
-        <Link href="/" className={`text-base md:text-xl font-bold font-headline whitespace-nowrap
-          ${scrolled ? "text-primary" : "text-white"}`}>
-          🌱 AgTech Colombia
+        <Link href="/" className="flex items-center">
+          <img src="/images/logo-agtech.png" alt="AgTech Colombia"
+            className={`h-8 md:h-10 w-auto transition-all ${scrolled ? "" : "brightness-0 invert"}`} />
         </Link>
 
         {/* Desktop links */}
@@ -618,9 +618,8 @@ function Footer() {
     <footer className="bg-[oklch(0.20_0.08_160)] text-white/75 py-10 md:py-12 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
         <div className="col-span-2 md:col-span-1">
-          <p className="text-base font-bold text-white font-headline mb-2">
-            🌱 AgTech Colombia
-          </p>
+          <img src="/images/logo-agtech.png" alt="AgTech Colombia"
+            className="h-8 w-auto brightness-0 invert mb-2" />
           <p className="text-xs leading-relaxed mb-3">
             El ecosistema digital de innovación agrícola para Colombia.
           </p>

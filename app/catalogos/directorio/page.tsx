@@ -54,9 +54,7 @@ export default function DirectorioPage() {
               className="flex items-center gap-1.5 text-xs font-medium text-on-surface-variant hover:text-primary transition-colors rounded-xl px-3 py-2 hover:bg-surface-container">
               ← Inicio
             </Link>
-            <span className="font-bold text-primary font-headline text-base whitespace-nowrap">
-              AgTech Colombia
-            </span>
+            <img src="/images/logo-agtech.png" alt="AgTech Colombia" className="h-7 w-auto" />
           </div>
 
           {/* Search */}

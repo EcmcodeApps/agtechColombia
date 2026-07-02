@@ -359,8 +359,8 @@ export default function DirectorioPage() {
       {/* ── Barra superior ── */}
       <header className="sticky top-0 z-40 bg-white border-b border-outline-variant shadow-sm">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-          <Link href="/" className="text-lg font-bold text-primary font-headline whitespace-nowrap">
-            AgTech Colombia
+          <Link href="/" className="flex items-center">
+            <img src="/images/logo-agtech.png" alt="AgTech Colombia" className="h-8 w-auto" />
           </Link>
           <nav className="hidden md:flex items-center gap-6">
             {[

@@ -92,7 +92,9 @@ export default function LoginPage() {
 
         {/* Header */}
         <div className="text-center">
-          <Link href="/" className="text-xl font-bold text-primary font-headline">AgTech Colombia</Link>
+          <Link href="/" className="flex justify-center">
+            <img src="/images/logo-agtech.png" alt="AgTech Colombia" className="h-10 w-auto mx-auto" />
+          </Link>
           <h1 className="mt-3 text-2xl font-bold text-on-surface">Bienvenido de nuevo</h1>
           <p className="mt-1 text-sm text-on-surface-variant">Inicia sesión en tu cuenta</p>
         </div>

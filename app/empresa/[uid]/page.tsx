@@ -66,7 +66,7 @@ export default function PerfilPublicoPage() {
         <Link href="/directorio" className="flex items-center gap-2 text-sm font-medium text-on-surface-variant hover:text-on-surface">
           <span>←</span> <span className="hidden sm:inline">Directorio</span>
         </Link>
-        <span className="font-bold text-primary font-headline text-base">AgTech Colombia</span>
+        <img src="/images/logo-agtech.png" alt="AgTech Colombia" className="h-7 w-auto" />
         {/* Espacio reservado para alinear — sin botón de editar en página pública */}
         <div className="w-24" />
       </nav>

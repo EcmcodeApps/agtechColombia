@@ -158,7 +158,7 @@ export default function OnboardingPage() {
     <div className="flex flex-col min-h-screen bg-surface max-w-md mx-auto">
       {/* Header */}
       <header className="flex items-center justify-between px-5 py-4 bg-surface border-b border-outline-variant">
-        <span className="font-bold text-primary font-headline text-lg">AgTech Colombia</span>
+        <img src="/images/logo-agtech.png" alt="AgTech Colombia" className="h-8 w-auto" />
         <button onClick={async () => { await logout(); router.replace("/auth/login"); }}
           className="text-sm font-medium text-on-surface-variant hover:text-on-surface">
           Salir
