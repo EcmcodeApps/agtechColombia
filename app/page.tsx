@@ -330,14 +330,33 @@ function CategoriesSection({ cats }: { cats: CategoriaRecord[] }) {
   );
 }
 
-/* ── Featured companies ──────────────────────────────────────────────────── */
+/* ── Carrusel automático de empresas ─────────────────────────────────────── */
 function CompaniesSection({ companies }: { companies: CompanyRecord[] }) {
-  const featured = companies.filter(c => c.activa).slice(0,6);
+  const featured = companies.filter(c => c.activa);
   if (!featured.length) return null;
+
+  /* Duplicamos para loop infinito sin saltos */
+  const items = [...featured, ...featured];
+
   return (
-    <section className="py-12 md:py-16 px-4 sm:px-6 bg-white">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-end justify-between mb-6 md:mb-10 gap-3 flex-wrap">
+    <section className="py-12 md:py-16 bg-white overflow-hidden">
+      <style>{`
+        @keyframes slide-left {
+          0%   { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .carousel-track {
+          animation: slide-left 18s linear infinite;
+          will-change: transform;
+        }
+        .carousel-track:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+
+      {/* Encabezado */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-8">
+        <div className="flex items-end justify-between gap-3 flex-wrap">
           <div>
             <h2 className="text-2xl md:text-3xl font-bold text-on-surface font-headline">
               Empresas destacadas
@@ -351,45 +370,71 @@ function CompaniesSection({ companies }: { companies: CompanyRecord[] }) {
             Ver directorio →
           </Link>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-          {featured.map(c => {
+      </div>
+
+      {/* Carrusel — desborda sin scroll visible */}
+      <div className="overflow-hidden select-none">
+        <div className="carousel-track flex gap-4 w-max px-4">
+          {items.map((c, i) => {
             const nombre  = cNombre(c);
-            const pitch   = cPitch(c);
             const logo    = cLogo(c);
             const portada = cPortada(c);
             const dept    = cDept(c);
+            const pitch   = cPitch(c);
+
             return (
-              <Link key={c.uid} href={`/empresa/${c.uid}`}
-                className="group bg-white rounded-2xl border border-outline-variant/40
-                           shadow-sm overflow-hidden hover:shadow-xl
-                           hover:-translate-y-1 transition-all duration-200">
-                <div className="relative h-28 sm:h-32 bg-gradient-to-br
-                                from-primary-container to-surface-container overflow-hidden">
+              <Link
+                key={`${c.uid}-${i}`}
+                href={`/empresa/${c.uid}`}
+                className="group flex-shrink-0 w-44 sm:w-52"
+              >
+                {/* Tarjeta cuadrada */}
+                <div className="aspect-square rounded-2xl border border-outline-variant/40
+                                bg-[oklch(0.97_0.008_160)] shadow-sm
+                                group-hover:shadow-lg group-hover:-translate-y-1
+                                transition-all duration-300 overflow-hidden relative flex
+                                flex-col items-center justify-center p-3 gap-2">
+
+                  {/* Portada como fondo muy suave */}
                   {portada && (
                     <img src={portada} alt=""
-                      className="w-full h-full object-cover
-                                 group-hover:scale-105 transition-transform duration-500" />
+                      className="absolute inset-0 w-full h-full object-cover opacity-10
+                                 group-hover:opacity-20 transition-opacity duration-300" />
                   )}
-                  <div className="absolute -bottom-4 left-3 w-10 h-10 rounded-xl
-                                  bg-white border-2 border-white shadow-md overflow-hidden">
+
+                  {/* Logo completo centrado */}
+                  <div className="relative z-10 w-20 h-20 sm:w-24 sm:h-24 rounded-2xl
+                                  bg-white border border-outline-variant/30 shadow-md
+                                  overflow-hidden flex items-center justify-center flex-shrink-0">
                     {logo
-                      ? <img src={logo} alt={nombre} className="w-full h-full object-contain p-0.5" />
-                      : <Initials name={nombre} size={40} />
+                      ? <img src={logo} alt={nombre}
+                             className="w-full h-full object-contain p-2" />
+                      : <Initials name={nombre} size={80} />
                     }
                   </div>
-                </div>
-                <div className="pt-6 px-4 pb-4">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-sm text-on-surface">{nombre}</span>
-                    <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+
+                  {/* Nombre + ubicación */}
+                  <div className="relative z-10 text-center px-1">
+                    <p className="font-bold text-xs sm:text-sm text-on-surface leading-tight
+                                  line-clamp-2 group-hover:text-primary transition-colors">
+                      {nombre}
+                    </p>
+                    {dept && (
+                      <p className="text-[10px] text-on-surface-variant mt-0.5 truncate">
+                        📍 {dept}
+                      </p>
+                    )}
+                    {pitch && (
+                      <p className="text-[10px] text-on-surface-variant mt-1 line-clamp-2 leading-snug
+                                    hidden sm:block">
+                        {pitch}
+                      </p>
+                    )}
                   </div>
-                  {dept && <p className="text-xs text-on-surface-variant mt-0.5">📍 {dept}</p>}
-                  <p className="text-xs text-on-surface-variant mt-2 line-clamp-2 leading-relaxed">
-                    {pitch}
-                  </p>
-                  <span className="inline-block mt-3 text-xs font-semibold text-primary group-hover:underline">
-                    Ver perfil →
-                  </span>
+
+                  {/* Indicador verificada */}
+                  <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full
+                                   bg-green-500 shadow-sm z-10" title="Activa" />
                 </div>
               </Link>
             );
