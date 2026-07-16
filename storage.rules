@@ -1,0 +1,31 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Logos de empresa ──────────────────────────────────────────────────
+    // logos/{uid}/{fileName}
+    // El dueño escribe; cualquier usuario autenticado lee
+    match /logos/{uid}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 5 * 1024 * 1024   // 5 MB máx
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // ── CVs de candidatos ────────────────────────────────────────────────
+    // cvs/{uid}/{fileName}
+    // Solo el dueño escribe; empresas autenticadas leen
+    match /cvs/{uid}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 10 * 1024 * 1024  // 10 MB máx
+                   && (
+                     request.resource.contentType == 'application/pdf'
+                     || request.resource.contentType.matches('image/.*')
+                   );
+    }
+  }
+}

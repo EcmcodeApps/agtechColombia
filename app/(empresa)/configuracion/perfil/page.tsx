@@ -1,32 +1,103 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-
-const FORM_AV = "https://lh3.googleusercontent.com/aida-public/AB6AXuCIA6m1nLjnQUmUwGy_GQly6Kep6NtuDU8JHgIkvKBqBCyGESOHEvsBiVA7EP-s8ndtYoQya6tQQLH5IZXIZRD9Y6PY5ABG4MYllbaMveKKUprk1bJiuWv8qbozGYpbE45FdLnQOBmSMEaYeImWSBFFnzgmxq3f8Zl0O5JiZ7zaoypyPYW4BHK9nSvF8dwIlnnZ2qOoBcGdwUMsprQL_7K3DlgMId5abuJiRij6LEpobsXMf5QvAq352bAbwSP2WjVzo1QMuY5YGw";
+import { useRef, useState, useEffect } from "react";
+import { useAuth } from "@/app/lib/auth-context";
+import { empresasService, usuariosService } from "@/app/lib/firestore-service";
+import { uploadEmpresaLogo, deleteStorageFile } from "@/app/lib/storage-service";
 
 type SaveState = "idle" | "loading" | "saved";
 
-const inputCls = "w-full bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary h-12 px-md text-body-md outline-none transition-all";
+const inputCls =
+  "w-full bg-surface rounded-lg border border-outline-variant focus:border-primary " +
+  "focus:ring-1 focus:ring-primary h-12 px-md text-body-md outline-none transition-all";
 const card = "bg-white rounded-2xl shadow-[0px_4px_20px_rgba(15,76,129,0.05)] border border-outline-variant";
 
 export default function PerfilConfigPage() {
-  const [nombre,   setNombre]   = useState("Admin TalentoYa");
-  const [cargo,    setCargo]    = useState("Director de Operaciones");
-  const [telefono, setTelefono] = useState("300 123 4567");
-  const [saveState, setSave]    = useState<SaveState>("idle");
+  const { user }        = useAuth();
+  const fileInputRef    = useRef<HTMLInputElement>(null);
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (saveState !== "idle") return;
-    setSave("loading");
-    // TODO: Firestore — update user doc
-    setTimeout(() => {
-      setSave("saved");
-      setTimeout(() => setSave("idle"), 2000);
-    }, 1500);
+  // ── Datos del formulario ──────────────────────────────────────────────────
+  const [nombre,     setNombre]     = useState("");
+  const [cargo,      setCargo]      = useState("");
+  const [telefono,   setTelefono]   = useState("");
+  const [logoUrl,    setLogoUrl]    = useState("");
+  const [prevLogoUrl,setPrevLogoUrl]= useState(""); // URL anterior para eliminar
+
+  // ── UI state ──────────────────────────────────────────────────────────────
+  const [saveState,    setSave]        = useState<SaveState>("idle");
+  const [saveError,    setSaveError]   = useState("");
+  const [uploadPct,    setUploadPct]   = useState(0);
+  const [uploading,    setUploading]   = useState(false);
+  const [previewLocal, setPreviewLocal]= useState(""); // blob URL para preview inmediato
+
+  // ── Cargar datos reales desde Firestore ───────────────────────────────────
+  useEffect(() => {
+    if (!user) return;
+    Promise.all([
+      usuariosService.get(user.uid),
+      empresasService.get(user.uid),
+    ]).then(([u, e]) => {
+      setNombre(u?.nombre ?? user.displayName ?? "");
+      setCargo(u?.contacto ?? "");
+      setTelefono(u?.telefono ?? "");
+      if (e?.logoUrl) {
+        setLogoUrl(e.logoUrl);
+        setPrevLogoUrl(e.logoUrl);
+      }
+    });
+  }, [user]);
+
+  // ── Subir logo ────────────────────────────────────────────────────────────
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // Preview local inmediato
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewLocal(objectUrl);
+    setUploading(true);
+    setUploadPct(0);
+
+    try {
+      const url = await uploadEmpresaLogo(user.uid, file, setUploadPct);
+      setLogoUrl(url);
+      // Eliminar logo anterior de Storage si existía
+      if (prevLogoUrl && prevLogoUrl !== url) {
+        deleteStorageFile(prevLogoUrl);
+      }
+    } catch {
+      setPreviewLocal("");
+    } finally {
+      setUploading(false);
+      setUploadPct(0);
+      // Limpiar input para que el mismo archivo se pueda seleccionar de nuevo
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
+
+  // ── Guardar cambios ───────────────────────────────────────────────────────
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (saveState !== "idle" || !user) return;
+    setSaveError("");
+    setSave("loading");
+    try {
+      await Promise.all([
+        usuariosService.update(user.uid, { nombre, contacto: cargo, telefono }),
+        empresasService.update(user.uid, { ...(logoUrl ? { logoUrl } : {}) }),
+      ]);
+      setPrevLogoUrl(logoUrl);
+      setSave("saved");
+      setTimeout(() => setSave("idle"), 2500);
+    } catch {
+      setSaveError("No se pudieron guardar los cambios. Intenta de nuevo.");
+      setSave("idle");
+    }
+  };
+
+  const avatarSrc = previewLocal || logoUrl;
 
   return (
     <div className="px-margin-mobile md:px-gutter py-xl">
@@ -47,39 +118,94 @@ export default function PerfilConfigPage() {
             {/* Información general */}
             <div className={`${card} p-xl`}>
               <div className="flex items-center gap-lg mb-xl">
+
+                {/* Avatar con upload */}
                 <div className="relative group flex-shrink-0">
-                  <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-md bg-surface-container-high">
-                    <Image src={FORM_AV} alt="Foto de perfil" width={96} height={96} className="w-full h-full object-cover" />
+                  <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-md bg-surface-container-high flex items-center justify-center">
+                    {avatarSrc ? (
+                      <Image
+                        src={avatarSrc}
+                        alt="Logo de empresa"
+                        width={96}
+                        height={96}
+                        className="w-full h-full object-cover"
+                        unoptimized={!!previewLocal}
+                      />
+                    ) : (
+                      <span className="text-on-surface-variant text-[32px] font-bold uppercase">
+                        {nombre.charAt(0) || user?.email?.charAt(0) || "E"}
+                      </span>
+                    )}
+                    {/* Overlay de progreso */}
+                    {uploading && (
+                      <div className="absolute inset-0 bg-black/50 rounded-full flex flex-col items-center justify-center">
+                        <span className="text-white text-label-md font-bold">{uploadPct}%</span>
+                      </div>
+                    )}
                   </div>
-                  <button type="button"
-                    className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full shadow-lg hover:scale-105 transition-transform"
-                    aria-label="Cambiar foto">
+
+                  {/* Botón cámara */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full shadow-lg hover:scale-105 transition-transform disabled:opacity-60"
+                    aria-label="Cambiar logo"
+                  >
                     <span className="material-symbols-outlined text-[18px]">photo_camera</span>
                   </button>
+
+                  {/* Input oculto */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
                 </div>
+
                 <div>
                   <h2 className="text-headline-md text-on-surface">Información General</h2>
-                  <p className="text-body-sm text-on-surface-variant">Actualiza tus datos personales y profesionales.</p>
+                  <p className="text-body-sm text-on-surface-variant">
+                    Actualiza el logo y tus datos de contacto.
+                  </p>
+                  <p className="text-label-sm text-on-surface-variant mt-xs">
+                    Imagen JPG, PNG o WebP · máx 5 MB
+                  </p>
                 </div>
               </div>
 
               <div className="space-y-lg">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
                   <div className="flex flex-col gap-xs">
-                    <label className="text-label-md text-on-surface">Nombre Completo</label>
-                    <input className={inputCls} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Tu nombre" />
+                    <label className="text-label-md text-on-surface">Nombre de Contacto</label>
+                    <input
+                      className={inputCls}
+                      value={nombre}
+                      onChange={e => setNombre(e.target.value)}
+                      placeholder="Tu nombre completo"
+                    />
                   </div>
                   <div className="flex flex-col gap-xs">
                     <label className="text-label-md text-on-surface">Cargo en la Empresa</label>
-                    <input className={inputCls} value={cargo} onChange={e => setCargo(e.target.value)} placeholder="Ej: Gerente de RRHH" />
+                    <input
+                      className={inputCls}
+                      value={cargo}
+                      onChange={e => setCargo(e.target.value)}
+                      placeholder="Ej: Gerente de RRHH"
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
                   <div className="flex flex-col gap-xs">
                     <label className="text-label-md text-on-surface">Correo Electrónico</label>
                     <div className="relative">
-                      <input className={`${inputCls} bg-surface-container-low text-on-surface-variant pr-[44px]`}
-                        value="admin@TalentoYa.co" readOnly />
+                      <input
+                        className={`${inputCls} bg-surface-container-low text-on-surface-variant pr-[44px]`}
+                        value={user?.email ?? ""}
+                        readOnly
+                      />
                       <span className="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 text-outline text-[20px]">lock</span>
                     </div>
                     <p className="text-label-sm text-on-surface-variant">Contacta a soporte para cambiar tu correo.</p>
@@ -88,7 +214,13 @@ export default function PerfilConfigPage() {
                     <label className="text-label-md text-on-surface">Teléfono de Contacto</label>
                     <div className="flex">
                       <div className="flex items-center justify-center bg-surface-variant px-md rounded-l-lg border border-r-0 border-outline-variant text-label-md select-none">+57</div>
-                      <input className={`${inputCls} rounded-l-none`} type="tel" value={telefono} onChange={e => setTelefono(e.target.value)} />
+                      <input
+                        className={`${inputCls} rounded-l-none`}
+                        type="tel"
+                        value={telefono}
+                        onChange={e => setTelefono(e.target.value)}
+                        placeholder="300 000 0000"
+                      />
                     </div>
                   </div>
                 </div>
@@ -103,9 +235,9 @@ export default function PerfilConfigPage() {
                 </div>
                 <h3 className="text-label-md text-on-surface mb-xs">Cambiar Contraseña</h3>
                 <p className="text-body-sm text-on-surface-variant mb-md">Actualiza tu clave de acceso periódicamente.</p>
-                <span className="text-primary text-label-sm font-bold inline-flex items-center gap-xs">
+                <Link href="/configuracion/seguridad" className="text-primary text-label-sm font-bold inline-flex items-center gap-xs">
                   Configurar <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-                </span>
+                </Link>
               </div>
               <div className={`${card} p-lg cursor-pointer hover:shadow-md transition-shadow group`}>
                 <div className="flex justify-between items-start mb-md">
@@ -122,26 +254,35 @@ export default function PerfilConfigPage() {
               </div>
             </div>
 
-            {/* Botones guardar */}
+            {/* Error + Botones guardar */}
+            {saveError && (
+              <p className="text-error text-body-sm flex items-center gap-xs">
+                <span className="material-symbols-outlined text-[16px]">error</span>
+                {saveError}
+              </p>
+            )}
             <div className="flex gap-md justify-end pt-md">
               <Link href="/configuracion"
                 className="px-xl py-md border border-outline-variant text-on-surface text-label-md font-bold rounded-xl hover:bg-surface-container-low transition-colors">
                 Cancelar
               </Link>
-              <button type="submit" disabled={saveState !== "idle"}
-                className="px-xl py-md bg-energy-orange text-white text-label-md font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-70 flex items-center gap-sm">
+              <button
+                type="submit"
+                disabled={saveState !== "idle" || uploading}
+                className="px-xl py-md bg-energy-orange text-white text-label-md font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-70 flex items-center gap-sm"
+              >
                 {saveState === "loading" ? (
-                  <><span className="material-symbols-outlined animate-spin text-[20px]">sync</span> Guardando...</>
+                  <><span className="material-symbols-outlined animate-spin text-[20px]">sync</span>Guardando...</>
                 ) : saveState === "saved" ? (
-                  <><span className="material-symbols-outlined text-[20px]">check</span> ¡Guardado!</>
+                  <><span className="material-symbols-outlined text-[20px]">check</span>¡Guardado!</>
                 ) : (
-                  <><span className="material-symbols-outlined text-[20px]">save</span> Guardar Cambios</>
+                  <><span className="material-symbols-outlined text-[20px]">save</span>Guardar Cambios</>
                 )}
               </button>
             </div>
           </section>
 
-          {/* ── Sidebar: seguridad + ayuda ───────────────────────────── */}
+          {/* ── Sidebar ──────────────────────────────────────────────── */}
           <aside className="lg:col-span-4 space-y-gutter">
             <div className="bg-primary-container text-white p-xl rounded-2xl shadow-lg relative overflow-hidden">
               <div className="absolute top-0 right-0 opacity-10 -mr-10 -mt-10 pointer-events-none">
@@ -151,8 +292,11 @@ export default function PerfilConfigPage() {
               <p className="text-on-primary-container text-body-sm mb-lg relative z-10 opacity-90 leading-relaxed">
                 Datos encriptados bajo los estándares de ciberseguridad colombianos.
               </p>
-              <Link href="/politica-privacidad" target="_blank"
-                className="w-full bg-white text-primary text-label-md font-bold py-md rounded-xl flex items-center justify-center gap-sm hover:bg-surface-container-low transition-colors relative z-10">
+              <Link
+                href="/politica-privacidad"
+                target="_blank"
+                className="w-full bg-white text-primary text-label-md font-bold py-md rounded-xl flex items-center justify-center gap-sm hover:bg-surface-container-low transition-colors relative z-10"
+              >
                 <span className="material-symbols-outlined text-[20px]">description</span>
                 Ver Política de Privacidad
               </Link>
@@ -165,8 +309,8 @@ export default function PerfilConfigPage() {
               </h3>
               <ul className="space-y-md">
                 {[
-                  { label: "¿Cómo cambiar mi plan?",   icon: "open_in_new" },
-                  { label: "Exportar mis datos",         icon: "download" },
+                  { label: "¿Cómo cambiar mi plan?", icon: "open_in_new" },
+                  { label: "Exportar mis datos",      icon: "download" },
                 ].map(({ label, icon }) => (
                   <li key={label}>
                     <a href="#" className="text-body-sm text-on-surface-variant hover:text-primary transition-colors flex justify-between items-center">

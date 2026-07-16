@@ -22,6 +22,7 @@ export interface Empresa {
   nombre: string;
   nit: string;
   logo?: string;
+  logoUrl?: string;
   descripcion?: string;
   sector: string;
   tamano: "1-10" | "11-50" | "51-200" | "200+";

@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 interface TopAppBarProps {
   userName: string;
   userType: string;
-  avatarUrl: string;
+  avatarUrl?: string;
   hasNotification?: boolean;
 }
 
@@ -31,15 +31,23 @@ export default function TopAppBar({
       <div className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop h-16 flex items-center justify-between gap-lg">
         {/* Avatar + nombre */}
         <div className="flex items-center gap-sm flex-shrink-0">
-          <div className="w-9 h-9 md:w-10 md:h-10 rounded-full overflow-hidden border-2 border-primary-container">
-            <Image
-              src={avatarUrl}
-              alt={userName}
-              width={40}
-              height={40}
-              className="w-full h-full object-cover"
-              priority
-            />
+          <div className="w-9 h-9 md:w-10 md:h-10 rounded-full overflow-hidden border-2 border-primary-container flex-shrink-0">
+            {avatarUrl ? (
+              <Image
+                src={avatarUrl}
+                alt={userName}
+                width={40}
+                height={40}
+                className="w-full h-full object-cover"
+                priority
+              />
+            ) : (
+              <div className="w-full h-full bg-primary flex items-center justify-center">
+                <span className="text-white text-label-sm font-bold uppercase">
+                  {userName.charAt(0)}
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex flex-col">
             <span className="text-label-md text-on-surface">{userName}</span>

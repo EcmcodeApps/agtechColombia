@@ -1,10 +1,12 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import TopAppBar from "@/app/_components/TopAppBar";
-
-// ── Avatars ───────────────────────────────────────────────────────────────────
-const AVATAR_EMPRESA =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuCyDsYKpQpMxa_RWo9cmJ2oylOZ8EHhoj-0cC7dtB3IrZAc8NuWjtsaeqp6IGpzkg2_gbp_2QJoYWYKmts2MglWcgoLAVdBLOP-2YQsDS6HImwrergABAy5H9c4MnvB75L5RB3Kyx6Y5gq_RjHYw3LkllcueLC2t8H5We8hST9i8B7l_WTF2r1hDs-MO4QKTcE53maZS_uURnOAFg4jGoSDifnRtFDQDcV8CyTFDQufpIQ386jbJe9e3UnCoDuN0SZXsUzy9fA-ZQ";
+import { useAuthGuard } from "@/app/lib/hooks/useAuthGuard";
+import { usuariosService, vacantesService } from "@/app/lib/firestore-service";
+import type { Vacante } from "@/app/lib/types";
 
 const AVATAR_CAND_1 =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuDR0XX0nDkU_lRU1QgzADfpCySvDjpdDgZodhdKxWdLLW5EVXdtbgtpeNKyk8ovw5gbFC6fpR9HKAoKhtiS5QYr8kV7scCGYRLwrnElyYV9OQ_fjQs6NapI19vnRakDic0mNkl7aAb9kV9hXaEw5Q5yv1L2ik9v_3gmvSnCS4ue0A64ddKM6CG1jLVR3TQtaGgiAc3uzxqf0QPDOnK8ve1tp9t524HrQDQFgazAqEc8_zVRnWAxIACGMV_hZlmTtDR2RSz-yPFKDQ";
@@ -12,27 +14,33 @@ const AVATAR_CAND_1 =
 const AVATAR_CAND_2 =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuB8v2YGYGxSYwTuQTMNumPFfa2PvMv-G00_WlGWpSfNM4BqTtJa57CwHwPjkRQDozO7yGFB_xBc1jDuj14lyGOR3p6TukjScYQ6_g8MK2nbV5_CT8imX5RQVGMQMns8IEZE8nCzxyDf773zy_0-vpc6-MuckKotkub80mBsWf8YoN-co7p_EnIcYpbHrNZSWn0mC0cN4VqCEHl5M5wkMN4kaHFW7YGA6DsB8UUmgUnrO2l4ahUez4SZnqWXktggbV6cGHYW6KXTSg";
 
-// ── Datos demo — TODO: reemplazar con Firestore ──────────────────────────────
-const VACANTES_RENDIMIENTO: { title: string; postulaciones: number; score: number }[] = [
-  { title: "Desarrollador Frontend", postulaciones: 12, score: 88 },
-  { title: "Analista de Datos",      postulaciones: 8,  score: 94 },
-];
-
-const PIPELINE: { label: string; count: number; widthPct: number; color: string }[] = [
-  { label: "Nuevos",      count: 65, widthPct: 100, color: "bg-primary"       },
-  { label: "Entrevistas", count: 12, widthPct: 55,  color: "bg-energy-orange" },
-  { label: "Contratados", count: 3,  widthPct: 30,  color: "bg-brand-green"   },
-];
-
 // ── Página ────────────────────────────────────────────────────────────────────
 export default function EmpresaHomePage() {
+  const { user, loading: authLoading } = useAuthGuard();
+  const [empresaNombre, setEmpresaNombre] = useState("");
+  const [vacantes,      setVacantes]      = useState<Vacante[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    usuariosService.get(user.uid).then(u => {
+      setEmpresaNombre(u?.empresaNombre ?? user.displayName ?? "Mi Empresa");
+    });
+    vacantesService.porEmpresa(user.uid).then(setVacantes);
+  }, [user]);
+
+  const vacantesActivas = vacantes.filter(v => v.estado === "activa");
+  const topVacantes     = vacantesActivas.slice(0, 2);
+  const totalVistas     = vacantes.reduce((s, v) => s + v.vistas, 0);
+  const totalPostulaciones = vacantes.reduce((s, v) => s + v.totalPostulaciones, 0);
+
+  if (authLoading) return null;
+
   return (
     <>
       <TopAppBar
-        userName="Carlos G."
+        userName={user?.displayName?.split(" ")[0] ?? "Empresa"}
         userType="Empresa"
-        avatarUrl={AVATAR_EMPRESA}
-        hasNotification
+        hasNotification={false}
       />
 
       <main className="mt-16 px-margin-mobile md:px-margin-desktop max-w-max-width mx-auto w-full pt-lg pb-28 lg:pb-xl">
@@ -44,7 +52,7 @@ export default function EmpresaHomePage() {
               Panel de Reclutamiento
             </h1>
             <p className="text-body-md text-on-surface-variant mt-xs">
-              Inversiones Antioquia S.A.S
+              {empresaNombre}
             </p>
           </div>
           <Link
@@ -78,12 +86,12 @@ export default function EmpresaHomePage() {
               </div>
               <div className="grid grid-cols-2 gap-md relative z-10">
                 <div className="bg-white/10 rounded-xl p-md text-center">
-                  <p className="text-[40px] font-bold leading-none text-secondary-fixed">12h</p>
-                  <p className="text-body-sm text-white/80 mt-xs">Tiempo ahorrado</p>
+                  <p className="text-[40px] font-bold leading-none text-secondary-fixed">{totalVistas}</p>
+                  <p className="text-body-sm text-white/80 mt-xs">Vistas totales</p>
                 </div>
                 <div className="bg-white/10 rounded-xl p-md text-center">
-                  <p className="text-[40px] font-bold leading-none text-secondary-fixed">92%</p>
-                  <p className="text-body-sm text-white/80 mt-xs">Match promedio</p>
+                  <p className="text-[40px] font-bold leading-none text-secondary-fixed">{totalPostulaciones}</p>
+                  <p className="text-body-sm text-white/80 mt-xs">Postulaciones</p>
                 </div>
               </div>
               {/* Decoración */}
@@ -97,7 +105,7 @@ export default function EmpresaHomePage() {
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                   <span className="material-symbols-outlined text-primary">work</span>
                 </div>
-                <p className="text-[40px] font-bold leading-none text-on-surface">5</p>
+                <p className="text-[40px] font-bold leading-none text-on-surface">{vacantesActivas.length}</p>
                 <p className="text-body-sm text-on-surface-variant">Vacantes activas</p>
               </div>
 
@@ -157,28 +165,30 @@ export default function EmpresaHomePage() {
                 </Link>
               </div>
               <div className="space-y-lg">
-                {VACANTES_RENDIMIENTO.map((v) => (
-                  <div key={v.title} className="space-y-sm">
-                    <div className="flex items-start justify-between gap-sm flex-wrap">
-                      <p className="text-body-md font-bold text-on-surface min-w-0">{v.title}</p>
-                      <div className="flex items-center gap-sm flex-shrink-0">
-                        <span className="text-label-sm text-on-surface-variant">
-                          {v.postulaciones} postulaciones
-                        </span>
-                        <span className="bg-brand-green text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          {v.score}%
-                        </span>
+                {topVacantes.length === 0 ? (
+                  <p className="text-body-sm text-on-surface-variant text-center py-md">
+                    Publica vacantes para ver su rendimiento aquí.
+                  </p>
+                ) : topVacantes.map((v) => {
+                  const pct = totalPostulaciones > 0
+                    ? Math.round((v.totalPostulaciones / totalPostulaciones) * 100)
+                    : 0;
+                  return (
+                    <div key={v.id} className="space-y-sm">
+                      <div className="flex items-start justify-between gap-sm flex-wrap">
+                        <p className="text-body-md font-bold text-on-surface min-w-0 truncate">{v.titulo}</p>
+                        <div className="flex items-center gap-sm flex-shrink-0">
+                          <span className="text-label-sm text-on-surface-variant">
+                            {v.totalPostulaciones} postulaciones
+                          </span>
+                        </div>
+                      </div>
+                      <div className="h-2 bg-surface-container rounded-full overflow-hidden">
+                        <div className="h-full bg-brand-green rounded-full" style={{ width: `${Math.max(pct, 4)}%` }} />
                       </div>
                     </div>
-                    {/* Barra de progreso */}
-                    <div className="h-2 bg-surface-container rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-brand-green rounded-full"
-                        style={{ width: `${v.score}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
           </div>
@@ -194,22 +204,30 @@ export default function EmpresaHomePage() {
                   Ver pipeline
                 </Link>
               </div>
-              <div className="flex flex-col gap-xs">
-                {PIPELINE.map((stage, i) => (
-                  <div key={stage.label}>
-                    <div
-                      className={`${stage.color} rounded-lg px-md py-sm flex items-center justify-between text-white`}
-                      style={{ width: `${stage.widthPct}%` }}
-                    >
-                      <span className="text-label-sm truncate mr-sm">{stage.label}</span>
-                      <span className="text-label-md font-bold flex-shrink-0">{stage.count}</span>
+              {totalPostulaciones === 0 ? (
+                <p className="text-body-sm text-on-surface-variant text-center py-md">
+                  El embudo aparecerá cuando recibas postulaciones.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-xs">
+                  {[
+                    { label: "Nuevas",      count: totalPostulaciones, widthPct: 100, color: "bg-primary" },
+                    { label: "En revisión", count: Math.round(totalPostulaciones * 0.4), widthPct: 60, color: "bg-energy-orange" },
+                    { label: "Contratados", count: 0,                  widthPct: 20, color: "bg-brand-green" },
+                  ].map((stage, i, arr) => (
+                    <div key={stage.label}>
+                      <div
+                        className={`${stage.color} rounded-lg px-md py-sm flex items-center justify-between text-white`}
+                        style={{ width: `${stage.widthPct}%` }}
+                      >
+                        <span className="text-label-sm truncate mr-sm">{stage.label}</span>
+                        <span className="text-label-md font-bold flex-shrink-0">{stage.count}</span>
+                      </div>
+                      {i < arr.length - 1 && <div className="w-px h-3 bg-outline-variant/40 ml-4 my-xs" />}
                     </div>
-                    {i < PIPELINE.length - 1 && (
-                      <div className="w-px h-3 bg-outline-variant/40 ml-4 my-xs" />
-                    )}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </section>
 
             {/* ── Sugerencia estratégica IA ─────────────────────────── */}

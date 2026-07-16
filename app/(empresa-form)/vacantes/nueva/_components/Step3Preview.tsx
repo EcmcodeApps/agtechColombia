@@ -3,10 +3,13 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import TopAppBarForm from "@/app/_components/TopAppBarForm";
 import BottomNav from "@/app/_components/BottomNav";
 import PageFooter from "@/app/_components/PageFooter";
 import { VacanteFormData } from "../types";
+import { useAuth } from "@/app/lib/auth-context";
+import { vacantesService, usuariosService } from "@/app/lib/firestore-service";
 
 interface Props {
   data: VacanteFormData;
@@ -14,7 +17,10 @@ interface Props {
 }
 
 export default function Step3Preview({ data, onBack }: Props) {
+  const router = useRouter();
+  const { user } = useAuth();
   const [isPublishing, setIsPublishing] = useState(false);
+  const [publishError, setPublishError] = useState("");
 
   // Construir datos de la preview desde el formulario con fallbacks
   const jobTitle = data.jobTitle || "Tu cargo aquí";
@@ -31,11 +37,35 @@ export default function Step3Preview({ data, onBack }: Props) {
       : ["Atención al Cliente", "Ventas B2C", "Liderazgo"];
 
   const handlePublish = async () => {
+    if (!user || isPublishing) return;
+    setPublishError("");
     setIsPublishing(true);
-    // TODO: await createDocument('vacantes', { ...data, status: 'active', createdAt: new Date() })
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsPublishing(false);
-    // TODO: redirect('/home') o mostrar pantalla de éxito
+    try {
+      const usuario = await usuariosService.get(user.uid);
+      await vacantesService.create({
+        empresaId:          user.uid,
+        empresaNombre:      usuario?.empresaNombre ?? user.displayName ?? "Mi Empresa",
+        titulo:             data.jobTitle,
+        categoria:          data.category,
+        ciudad:             data.city,
+        descripcion:        data.description,
+        educacion:          data.educationLevel,
+        experiencia:        data.experienceLevel,
+        salarioMin:         Number(data.salaryMin) || 0,
+        salarioMax:         Number(data.salaryMax) || 0,
+        habilidades:        data.selectedSkills,
+        requisitos:         [],
+        beneficios:         [],
+        modalidad:          "presencial",
+        contrato:           "indefinido",
+        jornada:            "completa",
+        estado:             "activa",
+      });
+      router.push("/vacantes");
+    } catch {
+      setPublishError("No se pudo publicar. Intenta de nuevo.");
+      setIsPublishing(false);
+    }
   };
 
   return (
@@ -194,6 +224,12 @@ export default function Step3Preview({ data, onBack }: Props) {
                 </p>
 
                 <div className="flex flex-col gap-sm">
+                  {publishError && (
+                    <div className="flex items-center gap-sm p-md bg-error/10 border border-error/20 rounded-xl text-error">
+                      <span className="material-symbols-outlined text-[18px]">error</span>
+                      <p className="text-body-sm">{publishError}</p>
+                    </div>
+                  )}
                   <button
                     onClick={handlePublish}
                     disabled={isPublishing}

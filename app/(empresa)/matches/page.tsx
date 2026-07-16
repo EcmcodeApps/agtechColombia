@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import TopAppBarBrand from "@/app/_components/TopAppBarBrand";
 import { auth } from "@/app/lib/firebase";
 import { buildMatches } from "@/app/lib/matching-engine";
+import { seedCandidatosDemo } from "@/app/lib/seed-candidatos";
 import { candidatosService, matchesService, vacantesService } from "@/app/lib/firestore-service";
 import type { Candidato, Match, Vacante } from "@/app/lib/types";
 
@@ -186,12 +187,32 @@ export default function MatchesPage() {
         vacantesService.porEmpresa(user.uid, "activa"),
         candidatosService.listar(),
       ]);
-      const generated = buildMatches(vs, cs as Candidato[], 60);
+
+      if (!vs.length) {
+        setMsg("Necesitas al menos una vacante activa para generar matches.");
+        return;
+      }
+
+      // Si no hay candidatos en Firestore, cargamos perfiles demo automáticamente
+      let candidatos = cs as Candidato[];
+      let seeded = false;
+      if (!candidatos.length) {
+        setMsg("Poblando base de candidatos demo...");
+        await seedCandidatosDemo();
+        candidatos = await candidatosService.listar() as Candidato[];
+        seeded = true;
+      }
+
+      const generated = buildMatches(vs, candidatos, 60);
       await Promise.all(generated.map(m => matchesService.upsert(m)));
-      setMsg(`Generamos ${generated.length} matches reales con el motor Fase 1.`);
+      setMsg(
+        seeded
+          ? `Cargamos ${candidatos.length} candidatos demo y generamos ${generated.length} matches con el motor Fase 1.`
+          : `Actualizamos ${generated.length} matches con el motor Fase 1.`
+      );
       await load(user.uid);
     } catch {
-      setMsg("No se pudieron generar matches. Confirma que existan vacantes activas, candidatos y permisos de empresa.");
+      setMsg("No se pudieron generar matches. Confirma que existan vacantes activas y permisos de Firestore.");
     } finally {
       setGenerating(false);
     }

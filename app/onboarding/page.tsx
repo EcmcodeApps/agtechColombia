@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/app/lib/auth-context";
+import { empresasService, usuariosService } from "@/app/lib/firestore-service";
+import { uploadEmpresaLogo } from "@/app/lib/storage-service";
+import type { Empresa } from "@/app/lib/types";
 
 // ── Datos de selección ────────────────────────────────────────────────────────
 const SECTORES = [
@@ -154,15 +158,46 @@ function Confetti() {
 // ══════════════════════════════════════════════════════════════════════════════
 // Página principal
 // ══════════════════════════════════════════════════════════════════════════════
+const TAMANO_MAP: Record<string, Empresa["tamano"]> = {
+  micro:   "1-10",
+  pequena: "11-50",
+  mediana: "51-200",
+  grande:  "200+",
+};
+
 export default function OnboardingPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [step, setStep] = useState<Step>(0);
+  const [saving, setSaving] = useState(false);
 
   // ── Estado step 1: Empresa ────────────────────────────────────────────────
-  const [sector,    setSector]    = useState("");
-  const [ciudad,    setCiudad]    = useState("");
-  const [tamano,    setTamano]    = useState("");
-  const [descripcion, setDescripcion] = useState("");
+  const [sector,       setSector]       = useState("");
+  const [ciudad,       setCiudad]       = useState("");
+  const [tamano,       setTamano]       = useState("");
+  const [descripcion,  setDescripcion]  = useState("");
+  const [logoUrl,      setLogoUrl]      = useState("");
+  const [logoPreview,  setLogoPreview]  = useState("");
+  const [logoUploading,setLogoUploading]= useState(false);
+  const [logoUploadPct,setLogoUploadPct]= useState(0);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setLogoPreview(URL.createObjectURL(file));
+    setLogoUploading(true);
+    setLogoUploadPct(0);
+    try {
+      const url = await uploadEmpresaLogo(user.uid, file, setLogoUploadPct);
+      setLogoUrl(url);
+    } catch {
+      setLogoPreview("");
+    } finally {
+      setLogoUploading(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    }
+  };
 
   // ── Estado step 2: Reclutador ─────────────────────────────────────────────
   const [nombreResp, setNombreResp] = useState("");
@@ -185,8 +220,33 @@ export default function OnboardingPage() {
   const next = () => setStep((s) => (s < 4 ? ((s + 1) as Step) : s));
   const back = () => setStep((s) => (s > 0 ? ((s - 1) as Step) : s));
 
-  const finish = () => {
-    setStep(4);
+  const finish = async () => {
+    if (!user) { setStep(4); return; }
+    setSaving(true);
+    try {
+      const usuario = await usuariosService.get(user.uid);
+      await empresasService.set(user.uid, {
+        uid:         user.uid,
+        nombre:      usuario?.empresaNombre ?? user.displayName ?? "Mi Empresa",
+        nit:         usuario?.nit ?? "",
+        sector,
+        ciudad,
+        tamano:      TAMANO_MAP[tamano] ?? "1-10",
+        descripcion,
+        planActual:  "gratis",
+        ...(logoUrl ? { logoUrl } : {}),
+      });
+      await usuariosService.update(user.uid, {
+        onboardingCompleted: true,
+        telefono,
+        contacto: nombreResp,
+      });
+    } catch {
+      // si falla guardamos igual localmente y avanzamos
+    } finally {
+      setSaving(false);
+      setStep(4);
+    }
   };
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -401,6 +461,49 @@ export default function OnboardingPage() {
               </div>
 
               <div className="bg-white rounded-2xl border border-outline-variant/30 shadow-[0px_4px_20px_rgba(15,76,129,0.06)] p-xl space-y-lg">
+
+                {/* Logo de empresa — opcional */}
+                <div className="space-y-xs">
+                  <label className="text-label-md text-on-surface">
+                    Logo de la empresa{" "}
+                    <span className="text-on-surface-variant font-normal">(opcional)</span>
+                  </label>
+                  <div className="flex items-center gap-md">
+                    {/* Preview */}
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border-2 border-dashed border-outline-variant bg-surface-container-low flex items-center justify-center flex-shrink-0">
+                      {logoPreview ? (
+                        <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="material-symbols-outlined text-outline text-[28px]">business</span>
+                      )}
+                      {logoUploading && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <span className="text-white text-label-sm font-bold">{logoUploadPct}%</span>
+                        </div>
+                      )}
+                    </div>
+                    {/* Botón */}
+                    <div className="flex flex-col gap-xs">
+                      <button
+                        type="button"
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={logoUploading}
+                        className="inline-flex items-center gap-xs px-md py-sm border border-outline-variant rounded-xl text-label-md text-on-surface hover:border-primary hover:text-primary transition-colors disabled:opacity-60"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">upload</span>
+                        {logoPreview ? "Cambiar logo" : "Subir logo"}
+                      </button>
+                      <p className="text-label-sm text-on-surface-variant">JPG, PNG, WebP · máx 5 MB</p>
+                    </div>
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleLogoChange}
+                    />
+                  </div>
+                </div>
 
                 {/* Sector */}
                 <div className="space-y-xs">
@@ -707,11 +810,13 @@ export default function OnboardingPage() {
                 </button>
                 <button
                   onClick={finish}
-                  disabled={!canStep3}
+                  disabled={!canStep3 || saving}
                   className="flex-1 bg-primary text-white py-md rounded-xl text-label-md font-bold shadow-lg hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-sm"
                 >
-                  <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                  Finalizar configuración
+                  {saving
+                    ? <><span className="material-symbols-outlined text-[20px] animate-spin">sync</span>Guardando...</>
+                    : <><span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>Finalizar configuración</>
+                  }
                 </button>
               </div>
             </div>
