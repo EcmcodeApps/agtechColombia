@@ -6,6 +6,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { loginWithEmail, loginWithGoogle } from "@/app/lib/firebase-auth";
 import { FirebaseError } from "firebase/app";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/app/lib/firebase";
 
 const GOOGLE_LOGO =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuCViB3WQg_3wt9WDIH-8nh_XlZLZy62i1LMRZdiGZabH5mXZRtG_g2S7WD_LTWVk11f_0YAokn2JUJrCnjv4VINNX7mkv4YPFn-xGSc9-IbnzF6otvK60qibKa19y1_oAWgvJw33RXIQPePYiGb-F0rXtVhDOceXSx0z0JFUCIS6yvNQktOWOGsMeTb0JJRSRsVP5d3xATqezhLgZNESkM1AYgeDjHIn5ukbzW-TNJZ84OvlwygZ8Gal7x18xoY07Cwa8NrShzFUQ";
@@ -43,8 +45,11 @@ export default function LoginPage() {
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState("");
 
-  // ── Destino según tipo de usuario ─────────────────────────────────────────
-  const dest = userType === "employer" ? "/home" : "/home";
+  const redirectByRole = async (uid: string, fallback: string) => {
+    const snap = await getDoc(doc(db, "usuarios", uid));
+    const role = snap.exists() ? snap.data().role : null;
+    router.push(role === "candidato" ? "/candidato/home" : role === "empresa" ? "/home" : fallback);
+  };
 
   // ── Login con email ────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,8 +58,8 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await loginWithEmail(email, password);
-      router.push(dest);
+      const cred = await loginWithEmail(email, password);
+      await redirectByRole(cred.user.uid, "/home");
     } catch (err) {
       const code = err instanceof FirebaseError ? err.code : "";
       const msg  = firebaseErrorMsg(code);
@@ -70,8 +75,9 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await loginWithGoogle();
-      router.push(dest);
+      const cred = await loginWithGoogle();
+      const fallback = userType === "candidate" ? "/candidato/home" : "/home";
+      await redirectByRole(cred.user.uid, fallback);
     } catch (err) {
       const code = err instanceof FirebaseError ? err.code : "";
       const msg  = firebaseErrorMsg(code);
