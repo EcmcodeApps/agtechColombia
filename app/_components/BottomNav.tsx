@@ -11,10 +11,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: "/home",     icon: "home",      label: "Inicio"    },
-  { href: "/vacantes", icon: "work",      label: "Vacantes"  },
-  { href: "/matches",  icon: "handshake", label: "Matches", hasNotification: true },
-  { href: "/perfil",   icon: "person",    label: "Perfil"    },
+  { href: "/home",          icon: "home",        label: "Inicio"        },
+  { href: "/vacantes",      icon: "work",        label: "Vacantes"      },
+  { href: "/postulaciones", icon: "description", label: "Solicitudes", hasNotification: true },
+  { href: "/mensajes",      icon: "chat",        label: "Mensajes"      },
 ];
 
 export default function BottomNav() {

@@ -66,10 +66,13 @@ function VacanteCard({ v }: { v: Vacante }) {
           <span className="material-symbols-outlined text-[16px]">visibility</span>
           <span><strong className="text-on-surface font-semibold">{fmt(v.vistas)}</strong> vistas</span>
         </div>
-        <div className="flex items-center gap-xs text-body-sm text-on-surface-variant">
+        <Link
+          href="/postulaciones"
+          className="flex items-center gap-xs text-body-sm text-on-surface-variant hover:text-primary transition-colors"
+        >
           <span className="material-symbols-outlined text-[16px]">person_search</span>
           <span><strong className="text-on-surface font-semibold">{fmt(v.totalPostulaciones)}</strong> postulaciones</span>
-        </div>
+        </Link>
         <Link
           href={`/vacantes/${v.id}/editar`}
           className="ml-auto text-label-sm text-primary hover:underline"

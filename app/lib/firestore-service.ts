@@ -234,6 +234,33 @@ export const conversacionesService = {
     return docRef.id;
   },
 
+  // Crea o recupera una conversación entre empresa y candidato (ID determinista)
+  findOrCreate: async (
+    empresaId: string,
+    empresaNombre: string,
+    candidatoId: string,
+    candidatoNombre: string,
+    candidatoAvatar?: string,
+    vacanteId?: string,
+    vacanteTitulo?: string,
+  ): Promise<string> => {
+    const id = `${empresaId}_${candidatoId}`;
+    await setDoc(ref<Conversacion>("conversaciones", id), {
+      participantes: [empresaId, candidatoId] as [string, string],
+      empresaNombre,
+      candidatoNombre,
+      candidatoAvatar,
+      vacanteId,
+      vacanteTitulo,
+      lastMessage: "",
+      lastSenderId: empresaId,
+      unreadCount: 0,
+      lastMessageAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+    } as unknown as Conversacion, { merge: true });
+    return id;
+  },
+
   enviarMensaje: async (
     conversacionId: string,
     senderId: string,
