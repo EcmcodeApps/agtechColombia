@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
-  { href: "/candidato/home",          icon: "home",         label: "Inicio"      },
-  { href: "/candidato/vacantes",      icon: "work_history", label: "Empleos"     },
-  { href: "/candidato/postulaciones", icon: "description",  label: "Solicitudes" },
-  { href: "/candidato/mensajes",      icon: "chat",         label: "Mensajes"    },
+  { href: "/candidato/home",           icon: "home",         label: "Inicio"      },
+  { href: "/candidato/vacantes",       icon: "work_history", label: "Empleos"     },
+  { href: "/candidato/postulaciones",  icon: "description",  label: "Solicitudes" },
+  { href: "/candidato/mensajes",       icon: "chat",         label: "Mensajes"    },
+  { href: "/candidato/perfil",         icon: "person",       label: "Perfil"      },
 ];
 
 export default function BottomNavCandidato() {
