@@ -8,7 +8,7 @@ import { auth } from "@/app/lib/firebase";
 import { buildMatches } from "@/app/lib/matching-engine";
 import { seedCandidatosDemo } from "@/app/lib/seed-candidatos";
 import { candidatosService, matchesService, vacantesService } from "@/app/lib/firestore-service";
-import type { Candidato, Match, Vacante } from "@/app/lib/types";
+import type { AnalisisIA, Candidato, Match, Vacante } from "@/app/lib/types";
 
 type StageId = "pendiente" | "revisado" | "contactado" | "descartado";
 type SortKey = "score" | "reciente";
@@ -65,10 +65,38 @@ function Bar({ label, val }: { label: string; val: number }) {
   );
 }
 
-function MatchCard({ m }: { m: Match }) {
+function MatchCard({ m, vacante }: { m: Match; vacante?: Vacante }) {
   const [open, setOpen] = useState(false);
+  const [analisisIA, setAnalisisIA] = useState<AnalisisIA | null | undefined>(undefined);
+  const [aiStatus, setAiStatus] = useState<"idle" | "loading" | "error">("idle");
   const initials = m.candidatoNombre.split(" ").map(x => x[0]).join("").slice(0, 2).toUpperCase();
   const tags = m.habilidadesCoincidentes?.length ? m.habilidadesCoincidentes : ["Perfil compatible"];
+
+  async function fetchAI() {
+    if (analisisIA !== undefined || aiStatus === "loading" || !vacante) return;
+    setAiStatus("loading");
+    try {
+      const candidato = await candidatosService.get(m.candidatoId);
+      if (!candidato) { setAnalisisIA(null); setAiStatus("idle"); return; }
+      const res = await fetch("/api/match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vacante, candidato }),
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const body = await res.json() as { analisisIA?: AnalisisIA | null };
+      setAnalisisIA(body.analisisIA ?? null);
+      setAiStatus("idle");
+    } catch {
+      setAiStatus("error");
+    }
+  }
+
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next) void fetchAI();
+  }
 
   return (
     <article className="bg-white rounded-2xl shadow-[0px_4px_20px_rgba(15,76,129,0.06)] border border-outline-variant/40 hover:shadow-[0px_8px_28px_rgba(15,76,129,0.12)] hover:-translate-y-0.5 transition-all duration-300 flex flex-col">
@@ -111,7 +139,7 @@ function MatchCard({ m }: { m: Match }) {
         </p>
       </div>
 
-      <button onClick={() => setOpen(v => !v)}
+      <button onClick={toggle}
         className="mx-lg mb-sm flex items-center gap-xs text-primary text-label-sm hover:underline self-start">
         <span className="material-symbols-outlined text-[14px]">{open ? "expand_less" : "expand_more"}</span>
         {open ? "Ocultar desglose IA" : "Ver desglose IA"}
@@ -124,6 +152,96 @@ function MatchCard({ m }: { m: Match }) {
             <div className="bg-error-container text-on-error-container rounded-xl p-sm text-[11px] leading-snug">
               <strong>Validar:</strong> {m.riesgos.join(" ")}
             </div>
+          )}
+
+          {/* ── Análisis Haiku IA ─────────────────────────────────── */}
+          {aiStatus === "loading" && (
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", paddingTop: "8px", color: "#606880", fontSize: "12px" }}>
+              <span className="material-symbols-outlined text-[16px] animate-spin" style={{ color: "#606880" }}>sync</span>
+              Analizando con Haiku IA…
+            </div>
+          )}
+
+          {aiStatus === "error" && (
+            <button
+              onClick={() => { setAiStatus("idle"); void fetchAI(); }}
+              style={{ fontSize: "11px", color: "#B3261E", paddingTop: "8px", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+              No se pudo obtener el análisis IA — reintentar
+            </button>
+          )}
+
+          {analisisIA && (
+            <div style={{ borderTop: "1px solid rgba(0,0,0,0.08)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+              {/* Veredicto */}
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "8px", background: "rgba(0,108,75,0.06)", borderRadius: "10px", padding: "10px 12px" }}>
+                <span className="material-symbols-outlined text-[16px]" style={{ color: "#006c4b", flexShrink: 0, marginTop: "1px", fontVariationSettings: "'FILL' 1" }}>verified</span>
+                <div>
+                  <p style={{ fontWeight: 700, fontSize: "11px", color: "#006c4b", marginBottom: "2px", textTransform: "uppercase", letterSpacing: "0.04em" }}>Veredicto Haiku IA</p>
+                  <p style={{ fontSize: "12px", color: "#1a1c1e", lineHeight: 1.45 }}>{analisisIA.veredicto}</p>
+                </div>
+              </div>
+
+              {/* Score ajustado */}
+              {analisisIA.scoreAjustado != null && (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "11px", color: "#606880" }}>Score ajustado IA:</span>
+                  <span style={{ fontWeight: 700, fontSize: "14px", color: analisisIA.scoreAjustado >= 85 ? "#006c4b" : "#FF6200" }}>
+                    {analisisIA.scoreAjustado}%
+                  </span>
+                  {analisisIA.justificacionScore && (
+                    <span style={{ fontSize: "10px", color: "#8b8fa8" }}>— {analisisIA.justificacionScore}</span>
+                  )}
+                </div>
+              )}
+
+              {/* Explicación */}
+              {analisisIA.explicacion && (
+                <p style={{ fontSize: "11px", color: "#44464f", lineHeight: 1.5 }}>{analisisIA.explicacion}</p>
+              )}
+
+              {/* Fortalezas */}
+              {!!analisisIA.fortalezas?.length && (
+                <div>
+                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#606880", marginBottom: "5px" }}>Fortalezas</p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                    {analisisIA.fortalezas.map(f => (
+                      <span key={f} style={{ fontSize: "10px", fontWeight: 600, background: "rgba(0,108,75,0.10)", color: "#006c4b", borderRadius: "100px", padding: "2px 8px" }}>{f}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Habilidades transferibles */}
+              {!!analisisIA.habilidadesTransferibles?.length && (
+                <div>
+                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#606880", marginBottom: "5px" }}>Habilidades transferibles</p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                    {analisisIA.habilidadesTransferibles.map(h => (
+                      <span key={h} style={{ fontSize: "10px", fontWeight: 600, background: "rgba(15,76,129,0.08)", color: "#00355f", borderRadius: "100px", padding: "2px 8px" }}>{h}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Riesgos IA */}
+              {!!analisisIA.riesgos?.length && (
+                <div style={{ background: "rgba(179,38,30,0.06)", borderRadius: "10px", padding: "8px 12px" }}>
+                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#B3261E", marginBottom: "5px" }}>Riesgos identificados por IA</p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                    {analisisIA.riesgos.map(r => (
+                      <span key={r} style={{ fontSize: "10px", fontWeight: 600, background: "rgba(179,38,30,0.12)", color: "#B3261E", borderRadius: "100px", padding: "2px 8px" }}>{r}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Mensaje cuando IA devolvió null (degradación elegante) */}
+          {analisisIA === null && aiStatus === "idle" && (
+            <p style={{ fontSize: "11px", color: "#8b8fa8", paddingTop: "4px" }}>
+              Análisis IA no disponible para este candidato.
+            </p>
           )}
         </div>
       )}
@@ -193,7 +311,6 @@ export default function MatchesPage() {
         return;
       }
 
-      // Si no hay candidatos en Firestore, cargamos perfiles demo automáticamente
       let candidatos = cs as Candidato[];
       let seeded = false;
       if (!candidatos.length) {
@@ -223,6 +340,11 @@ export default function MatchesPage() {
     ...vacantes.map(v => ({ id: v.id, label: v.titulo })),
   ], [vacantes]);
 
+  const vacanteById = useMemo(() =>
+    Object.fromEntries(vacantes.map(v => [v.id, v])) as Record<string, Vacante>,
+    [vacantes]
+  );
+
   const list = matches
     .filter(m => m.estado === stage)
     .filter(m => position === "todas" || m.vacanteId === position)
@@ -236,10 +358,10 @@ export default function MatchesPage() {
       <main className="pt-24 px-margin-mobile md:px-margin-desktop max-w-max-width mx-auto pb-28 lg:pb-xl space-y-lg">
         <section className="flex flex-col md:flex-row md:items-end justify-between gap-md">
           <div>
-            <p className="text-label-sm text-on-surface-variant mb-xs">Motor IA Fase 1</p>
+            <p className="text-label-sm text-on-surface-variant mb-xs">Motor IA Fase 1 + Haiku</p>
             <h1 className="text-headline-lg-mobile md:text-headline-lg text-primary font-bold">Matches inteligentes</h1>
             <p className="text-body-sm text-on-surface-variant max-w-2xl">
-              Calcula compatibilidad por habilidades, experiencia, ubicación, salario, formación y disponibilidad.
+              Calcula compatibilidad por habilidades, experiencia, ubicación, salario, formación y disponibilidad. Expande cada candidato para ver el análisis Haiku IA.
             </p>
           </div>
           <button onClick={generate} disabled={!user || generating}
@@ -308,7 +430,7 @@ export default function MatchesPage() {
           </div>
         ) : list.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
-            {list.map(m => <MatchCard key={m.id} m={m} />)}
+            {list.map(m => <MatchCard key={m.id} m={m} vacante={vacanteById[m.vacanteId]} />)}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-outline-variant py-xl text-center gap-md">
@@ -316,7 +438,7 @@ export default function MatchesPage() {
             <div>
               <h2 className="text-headline-md text-primary mb-xs">Aún no hay matches en esta vista</h2>
               <p className="text-body-md text-on-surface-variant max-w-xl">
-                Crea una vacante activa y candidatos; luego pulsa “Generar matches” para poblar esta sección con resultados reales.
+                Crea una vacante activa y candidatos; luego pulsa "Generar matches" para poblar esta sección con resultados reales.
               </p>
             </div>
           </div>

@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Cuerpo inválido" }, { status: 400 });
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return Response.json({ error: "Servicio IA no disponible", fallback: true }, { status: 503 });
   }
 
