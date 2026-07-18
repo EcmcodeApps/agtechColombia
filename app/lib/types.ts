@@ -151,6 +151,17 @@ export interface Postulacion {
   updatedAt: Timestamp;
 }
 
+// ── Análisis IA (campo opcional en Match) ─────────────────────────────────────
+export interface AnalisisIA {
+  veredicto: string;
+  explicacion: string;
+  fortalezas: string[];
+  riesgos: string[];
+  habilidadesTransferibles: string[];
+  scoreAjustado?: number | null;
+  justificacionScore?: string | null;
+}
+
 // ── Match (colección: matches) ────────────────────────────────────────────────
 export type MatchEstado = "pendiente" | "revisado" | "contactado" | "descartado";
 
@@ -177,6 +188,7 @@ export interface Match {
   habilidadesCoincidentes?: string[];
   tipo: "activo" | "pasivo"; // activo = candidato aplicó; pasivo = AI proactivo
   estado: MatchEstado;
+  analisisIA?: AnalisisIA | null;
   createdAt: Timestamp;
 }
 
